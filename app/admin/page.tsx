@@ -1,26 +1,50 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CheckCircle, XCircle, RefreshCw, Lock, BarChart3, Users, Activity, Globe, Shield } from "lucide-react"
+import { CheckCircle, XCircle, RefreshCw, Shield, BarChart3, Users, Activity, Globe } from "lucide-react"
 
 export default function AdminPage() {
-  const [authenticated, setAuthenticated] = useState(false)
-  const [password, setPassword] = useState("")
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [apiStatus, setApiStatus] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+  const supabase = getSupabaseBrowserClient()
 
-  const ADMIN_PASSWORD = "shadowsignals2025"
+  useEffect(() => {
+    checkAdminAccess()
+  }, [])
 
-  const handleLogin = () => {
-    if (password === ADMIN_PASSWORD) {
-      setAuthenticated(true)
+  const checkAdminAccess = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        router.push("/login?redirect=/admin")
+        return
+      }
+
+      // Check if user is admin
+      const { data, error } = await supabase.from("users").select("is_admin").eq("id", user.id).single()
+
+      if (error || !data?.is_admin) {
+        router.push("/dashboard")
+        return
+      }
+
+      setIsAdmin(true)
       fetchAPIStatus()
-    } else {
-      alert("Incorrect password")
+    } catch (error) {
+      console.error("Admin access check failed:", error)
+      router.push("/dashboard")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -50,39 +74,22 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    if (authenticated) {
-      const interval = setInterval(fetchAPIStatus, 30000) // Refresh every 30s
+    if (isAdmin) {
+      const interval = setInterval(fetchAPIStatus, 30000)
       return () => clearInterval(interval)
     }
-  }, [authenticated])
+  }, [isAdmin])
 
-  if (!authenticated) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center py-20">
-        <Card className="w-full max-w-md bg-black/50 border-cyan-500/30">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-cyan-400">
-              <Lock className="w-5 h-5" />
-              Admin Access
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Input
-              type="password"
-              placeholder="Enter admin password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleLogin()}
-              className="bg-black/50 border-cyan-500/30 text-white"
-            />
-            <Button onClick={handleLogin} className="w-full bg-cyan-500 hover:bg-cyan-600 text-black">
-              Login
-            </Button>
-            <p className="text-xs text-gray-400 text-center">Password: shadowsignals2025</p>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-cyan-400">Verifying admin access...</div>
       </div>
     )
+  }
+
+  if (!isAdmin) {
+    return null
   }
 
   return (

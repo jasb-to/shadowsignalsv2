@@ -30,8 +30,9 @@ export default function AccountPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser()
+
       if (!user) {
-        router.push("/login")
+        router.push("/login?redirect=/account")
         return
       }
 
@@ -70,6 +71,10 @@ export default function AccountPage() {
         <div className="text-muted-foreground">Loading...</div>
       </div>
     )
+  }
+
+  if (!profile) {
+    return null
   }
 
   return (
