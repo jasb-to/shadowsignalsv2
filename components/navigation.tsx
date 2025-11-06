@@ -67,6 +67,9 @@ export function Navigation() {
             <Link href="/#how-it-works" className="text-gray-300 hover:text-cyan-400 transition-colors">
               How It Works
             </Link>
+            <Link href="/pricing" className="text-gray-300 hover:text-cyan-400 transition-colors">
+              Pricing
+            </Link>
             <Link href="/learn" className="text-gray-300 hover:text-cyan-400 transition-colors">
               Learn
             </Link>
@@ -137,6 +140,13 @@ export function Navigation() {
               onClick={() => setMobileMenuOpen(false)}
             >
               How It Works
+            </Link>
+            <Link
+              href="/pricing"
+              className="block text-gray-300 hover:text-cyan-400 transition-colors"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Pricing
             </Link>
             <Link
               href="/learn"

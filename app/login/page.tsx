@@ -25,6 +25,8 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
 
+    console.log("[v0] Login attempt for:", email)
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -33,21 +35,23 @@ export default function LoginPage() {
 
       if (error) throw error
 
+      console.log("[v0] Login successful, user:", data.user?.email)
+
       toast({
         title: "Welcome back!",
         description: "Successfully logged in.",
       })
 
-      router.push(redirectTo)
-      router.refresh()
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      console.log("[v0] Redirecting to:", redirectTo)
+      window.location.href = redirectTo
     } catch (error: any) {
+      console.error("[v0] Login error:", error)
       toast({
         title: "Login failed",
         description: error.message,
         variant: "destructive",
       })
-    } finally {
-      setLoading(false)
     }
   }
 
