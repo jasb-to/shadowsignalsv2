@@ -10,20 +10,53 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Mail } from "lucide-react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [needsConfirmation, setNeedsConfirmation] = useState(false)
+  const [resendingEmail, setResendingEmail] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get("redirectTo") || "/dashboard"
   const { toast } = useToast()
   const supabase = getSupabaseBrowserClient()
 
+  const handleResendConfirmation = async () => {
+    setResendingEmail(true)
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: email,
+        options: {
+          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/dashboard`,
+        },
+      })
+
+      if (error) throw error
+
+      toast({
+        title: "Confirmation email sent!",
+        description: "Please check your inbox and spam folder.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Failed to resend email",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setResendingEmail(false)
+    }
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setNeedsConfirmation(false)
 
     console.log("[v0] Login attempt for:", email)
 
@@ -33,7 +66,15 @@ export default function LoginPage() {
         password,
       })
 
-      if (error) throw error
+      if (error) {
+        if (error.message.includes("Email not confirmed")) {
+          setNeedsConfirmation(true)
+          throw new Error(
+            "Please confirm your email address before signing in. Check your inbox for the confirmation link.",
+          )
+        }
+        throw error
+      }
 
       console.log("[v0] Login successful, user:", data.user?.email)
 
@@ -46,12 +87,14 @@ export default function LoginPage() {
       console.log("[v0] Redirecting to:", redirectTo)
       window.location.href = redirectTo
     } catch (error: any) {
-      console.error("[v0] Login error:", error)
+      console.error("[v0] Login error:", error.message)
       toast({
         title: "Login failed",
         description: error.message,
         variant: "destructive",
       })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -62,6 +105,24 @@ export default function LoginPage() {
           <h1 className="text-4xl font-bold text-foreground">Welcome Back</h1>
           <p className="mt-2 text-muted-foreground">Sign in to access your ShadowSignals dashboard</p>
         </div>
+
+        {needsConfirmation && (
+          <Alert>
+            <Mail className="h-4 w-4" />
+            <AlertDescription className="flex flex-col gap-3">
+              <p>Please confirm your email address before signing in. Check your inbox for the confirmation link.</p>
+              <Button
+                onClick={handleResendConfirmation}
+                disabled={resendingEmail}
+                variant="outline"
+                size="sm"
+                className="w-full bg-transparent"
+              >
+                {resendingEmail ? "Sending..." : "Resend Confirmation Email"}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <form onSubmit={handleLogin} className="mt-8 space-y-6">
           <div className="space-y-4">
