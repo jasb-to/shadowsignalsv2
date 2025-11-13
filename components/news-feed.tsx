@@ -17,17 +17,25 @@ export function NewsFeed() {
   const [news, setNews] = useState<NewsItem[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<"all" | "crypto" | "stocks">("all")
+  const [errorMessage, setErrorMessage] = useState<string>("")
 
   useEffect(() => {
     const fetchNews = async () => {
       try {
+        console.log("[v0] Fetching news feed...")
         const response = await fetch("/api/news-feed")
         if (response.ok) {
           const data = await response.json()
-          setNews(data.news)
+          console.log("[v0] News data received:", data.news?.length || 0, "articles")
+          setNews(data.news || [])
+          setErrorMessage(data.message || "")
+        } else {
+          console.error("[v0] News API response not ok:", response.status)
+          setErrorMessage("Failed to load news")
         }
       } catch (error) {
         console.error("[v0] Failed to fetch news:", error)
+        setErrorMessage("Network error loading news")
       } finally {
         setLoading(false)
       }
@@ -115,7 +123,8 @@ export function NewsFeed() {
                 d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
               />
             </svg>
-            <p>No news available</p>
+            <p>{errorMessage || "No news available"}</p>
+            <p className="text-sm mt-2">Crypto news will appear here when available</p>
           </div>
         ) : (
           <div className="space-y-3 max-h-[500px] overflow-y-auto">

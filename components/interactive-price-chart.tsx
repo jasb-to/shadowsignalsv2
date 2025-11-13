@@ -14,12 +14,42 @@ export function InteractivePriceChart({ symbol, currentPrice }: PriceChartProps)
   const [timeframe, setTimeframe] = useState<"1H" | "4H" | "1D" | "1W">("1D")
   const [chartData, setChartData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const generateChartData = () => {
+    const fetchPriceHistory = async () => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        console.log(`[v0] Fetching price history for ${symbol} ${timeframe}`)
+        const response = await fetch(`/api/price-history?symbol=${symbol}&timeframe=${timeframe}`)
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch price history")
+        }
+
+        const result = await response.json()
+
+        if (result.error) {
+          throw new Error(result.error)
+        }
+
+        setChartData(result.data)
+      } catch (err) {
+        console.error("[v0] Error loading chart data:", err)
+        setError(err instanceof Error ? err.message : "Failed to load chart data")
+        
+        generateFallbackData()
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    const generateFallbackData = () => {
       const dataPoints = timeframe === "1H" ? 60 : timeframe === "4H" ? 96 : timeframe === "1D" ? 24 : 168
       const volatility = currentPrice * 0.02
-      let price = currentPrice * 0.95
+      let price = currentPrice * 0.98
 
       const data = Array.from({ length: dataPoints }, (_, i) => {
         price += (Math.random() - 0.48) * volatility
@@ -42,10 +72,9 @@ export function InteractivePriceChart({ symbol, currentPrice }: PriceChartProps)
 
       data[data.length - 1].price = currentPrice
       setChartData(data)
-      setLoading(false)
     }
 
-    generateChartData()
+    fetchPriceHistory()
   }, [timeframe, currentPrice, symbol])
 
   const CustomTooltip = ({ active, payload }: any) => {
@@ -64,7 +93,10 @@ export function InteractivePriceChart({ symbol, currentPrice }: PriceChartProps)
     <Card className="bg-black/50 border-cyan-500/20">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-white">Price Chart - {symbol}</CardTitle>
+          <CardTitle className="text-white">
+            Price Chart - {symbol}
+            {error && <span className="text-xs text-yellow-500 ml-2">(Estimated)</span>}
+          </CardTitle>
           <div className="flex gap-2">
             {(["1H", "4H", "1D", "1W"] as const).map((tf) => (
               <Button
