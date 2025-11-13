@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CheckCircle, XCircle, RefreshCw, Shield, BarChart3, Users, Activity, Globe } from "lucide-react"
+import { CheckCircle, XCircle, RefreshCw, Shield, BarChart3, Users, Activity, Globe } from 'lucide-react'
 
 export default function AdminPage() {
   const [isAdmin, setIsAdmin] = useState(false)
@@ -20,28 +20,62 @@ export default function AdminPage() {
   }, [])
 
   const checkAdminAccess = async () => {
+    console.log("[v0] Admin: Checking admin access...")
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser()
 
+      console.log("[v0] Admin: Current user:", user?.email)
+
       if (!user) {
+        console.log("[v0] Admin: No user found, redirecting to login")
         router.push("/login?redirect=/admin")
         return
       }
 
-      // Check if user is admin
-      const { data, error } = await supabase.from("users").select("is_admin").eq("id", user.id).single()
+      let { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("is_admin")
+        .eq("id", user.id)
+        .single()
 
-      if (error || !data?.is_admin) {
+      console.log("[v0] Admin: User data from DB:", userData, "Error:", userError)
+
+      // If user doesn't exist, create them
+      if (userError?.code === "PGRST116" || !userData) {
+        console.log("[v0] Admin: Creating user record...")
+        const { error: insertError } = await supabase.from("users").insert({
+          id: user.id,
+          email: user.email,
+          is_admin: false,
+          subscription_tier: "free",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+
+        if (insertError) {
+          console.error("[v0] Admin: Failed to create user:", insertError)
+        } else {
+          console.log("[v0] Admin: User record created")
+          // Fetch the newly created user
+          const { data: newUserData } = await supabase.from("users").select("is_admin").eq("id", user.id).single()
+          userData = newUserData
+        }
+      }
+
+      // Check admin status
+      if (!userData?.is_admin) {
+        console.log("[v0] Admin: User is not admin, redirecting to dashboard")
         router.push("/dashboard")
         return
       }
 
+      console.log("[v0] Admin: Access granted!")
       setIsAdmin(true)
       fetchAPIStatus()
     } catch (error) {
-      console.error("Admin access check failed:", error)
+      console.error("[v0] Admin: Access check failed:", error)
       router.push("/dashboard")
     } finally {
       setLoading(false)
