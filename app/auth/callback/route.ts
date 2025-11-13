@@ -33,11 +33,32 @@ export async function GET(request: NextRequest) {
       },
     )
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { error, data } = await supabase.auth.exchangeCodeForSession(code)
 
     if (error) {
       console.error("[v0] Auth callback error:", error.message)
       return NextResponse.redirect(new URL("/login?error=confirmation_failed", requestUrl.origin))
+    }
+
+    if (data.user) {
+      console.log("[v0] Creating user profile for:", data.user.email)
+      
+      const { error: profileError } = await supabase.from("users").upsert(
+        {
+          id: data.user.id,
+          email: data.user.email!,
+          subscription_tier: "free",
+          subscription_status: "inactive",
+          is_admin: false,
+        },
+        { onConflict: "id" }
+      )
+
+      if (profileError) {
+        console.error("[v0] Profile creation error:", profileError.message)
+      } else {
+        console.log("[v0] User profile created successfully")
+      }
     }
 
     console.log("[v0] Email confirmed successfully, redirecting to:", next)

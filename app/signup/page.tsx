@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import Link from "next/link"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -41,7 +41,7 @@ export default function SignupPage() {
         description: "Please check your email to verify your account.",
       })
 
-      router.push("/login")
+      router.push("/auth/signup-success")
     } catch (error: any) {
       toast({
         title: "Signup failed",
