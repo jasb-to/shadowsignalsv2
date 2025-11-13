@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Activity, TrendingUp, AlertTriangle, Bell, RefreshCw, ExternalLink } from "lucide-react"
+import { Activity, TrendingUp, AlertTriangle, Bell, RefreshCw, ExternalLink } from 'lucide-react'
 
 interface WhaleTransaction {
   hash: string
@@ -23,7 +23,7 @@ interface OnChainStats {
 }
 
 export default function OnChainPage() {
-  const [activeTab, setActiveTab] = useState<"overview" | "transactions" | "signals" | "notifications">("overview")
+  const [activeTab, setActiveTab] = useState<"overview" | "transactions" | "notifications">("overview")
   const [stats, setStats] = useState<OnChainStats>({
     whaleTransactions: 0,
     totalVolume: "$0",
@@ -31,7 +31,6 @@ export default function OnChainPage() {
     activeSignals: 0,
   })
   const [transactions, setTransactions] = useState<WhaleTransaction[]>([])
-  const [signals, setSignals] = useState<WhaleTransaction[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -45,7 +44,6 @@ export default function OnChainPage() {
       const data = await response.json()
       setStats(data.stats)
       setTransactions(data.transactions)
-      setSignals(data.signals)
     } catch (error) {
       console.error("[v0] Error fetching on-chain data:", error)
     } finally {
@@ -134,7 +132,6 @@ export default function OnChainPage() {
           {[
             { id: "overview", label: "Overview" },
             { id: "transactions", label: "Whale Transactions" },
-            { id: "signals", label: "Signals" },
             { id: "notifications", label: "Notifications" },
           ].map((tab) => (
             <button
@@ -152,29 +149,34 @@ export default function OnChainPage() {
         {/* Overview Tab */}
         {activeTab === "overview" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Recent Signals */}
+            {/* Recent Whale Activity */}
             <Card className="bg-black/50 border-cyan-500/20 p-6">
-              <h3 className="text-xl font-semibold text-cyan-400 mb-6">Recent Signals</h3>
+              <h3 className="text-xl font-semibold text-cyan-400 mb-6">Recent Whale Activity</h3>
               <div className="space-y-4">
-                {signals.slice(0, 3).map((signal, index) => (
-                  <div key={index} className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                {transactions.slice(0, 3).map((tx, index) => (
+                  <div key={index} className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">critical</span>
+                        <span className="bg-cyan-500 text-black text-xs font-bold px-2 py-1 rounded">WHALE</span>
                         <span className="text-white font-semibold">ETH</span>
                       </div>
                     </div>
                     <p className="text-sm text-gray-400">
-                      Whale transfer detected: {signal.value} ETH ({signal.valueUSD})
+                      Large transfer detected: {tx.value} ETH ({tx.valueUSD})
                     </p>
+                    <p className="text-xs text-gray-500 mt-1">{tx.timestamp}</p>
                   </div>
                 ))}
-                {signals.length > 3 && (
+                {transactions.length > 3 && (
                   <div className="text-center py-4 border border-cyan-500/20 rounded-lg">
                     <p className="text-sm text-gray-400 flex items-center justify-center gap-2">
-                      <span>🔒</span>
-                      Upgrade to see {signals.length - 3} more signals
+                      View all {transactions.length} whale transactions in the Whale Transactions tab
                     </p>
+                  </div>
+                )}
+                {transactions.length === 0 && (
+                  <div className="text-center py-8 text-gray-400">
+                    No recent whale activity detected
                   </div>
                 )}
               </div>
@@ -244,29 +246,6 @@ export default function OnChainPage() {
                   </div>
                 ))
               )}
-            </div>
-          </Card>
-        )}
-
-        {/* Signals Tab */}
-        {activeTab === "signals" && (
-          <Card className="bg-black/50 border-cyan-500/20 p-6">
-            <h3 className="text-xl font-semibold text-cyan-400 mb-6">Active Signals</h3>
-            <div className="space-y-4">
-              {signals.map((signal, index) => (
-                <div key={index} className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">critical</span>
-                      <span className="text-white font-semibold">ETH</span>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-400 mb-2">
-                    Whale transfer detected: {signal.value} ETH ({signal.valueUSD})
-                  </p>
-                  <div className="text-xs text-gray-500">{signal.timestamp}</div>
-                </div>
-              ))}
             </div>
           </Card>
         )}
