@@ -2,69 +2,80 @@ import { NextResponse } from "next/server"
 
 export async function GET() {
   try {
-    // Mock news data - in production, integrate with CryptoPanic, NewsAPI, or similar
-    const mockNews = [
+    const apiKey = process.env.NEWSDATA_API_KEY
+    
+    if (!apiKey) {
+      console.error("[v0] NEWSDATA_API_KEY not configured")
+      return NextResponse.json({ 
+        news: [],
+        error: "News API not configured. Please add NEWSDATA_API_KEY environment variable."
+      })
+    }
+
+    // Fetch crypto and financial news from NewsData.io
+    const response = await fetch(
+      `https://newsdata.io/api/1/news?apikey=${apiKey}&category=business,technology&q=crypto OR bitcoin OR ethereum OR stock OR market&language=en`,
       {
-        id: "1",
-        title: "Bitcoin Surges Past $100K as Institutional Adoption Accelerates",
-        source: "CryptoNews",
-        url: "https://example.com/news/1",
-        publishedAt: new Date(Date.now() - 3600000).toISOString(),
-        sentiment: "positive" as const,
-      },
+        next: { revalidate: 300 } // Cache for 5 minutes
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error(`NewsData.io API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+
+    // Transform NewsData.io format to our format
+    const news = data.results?.map((article: any, index: number) => ({
+      id: article.article_id || `news-${index}`,
+      title: article.title,
+      source: article.source_id || "Unknown",
+      url: article.link,
+      publishedAt: article.pubDate,
+      sentiment: determineSentiment(article.title, article.description),
+    })) || []
+
+    console.log(`[v0] Fetched ${news.length} real news articles from NewsData.io`)
+
+    return NextResponse.json({ news })
+  } catch (error) {
+    console.error("[v0] News feed error:", error)
+    
+    // Fallback to a few sample articles if API fails
+    const fallbackNews = [
       {
-        id: "2",
-        title: "Federal Reserve Signals Potential Rate Cuts in Q2 2025",
-        source: "Financial Times",
-        url: "https://example.com/news/2",
-        publishedAt: new Date(Date.now() - 7200000).toISOString(),
-        sentiment: "positive" as const,
-      },
-      {
-        id: "3",
-        title: "Ethereum Network Upgrade Improves Transaction Speed by 40%",
-        source: "CoinDesk",
-        url: "https://example.com/news/3",
-        publishedAt: new Date(Date.now() - 10800000).toISOString(),
-        sentiment: "positive" as const,
-      },
-      {
-        id: "4",
-        title: "Tech Stocks Face Volatility Amid Regulatory Concerns",
-        source: "Bloomberg",
-        url: "https://example.com/news/4",
-        publishedAt: new Date(Date.now() - 14400000).toISOString(),
-        sentiment: "negative" as const,
-      },
-      {
-        id: "5",
-        title: "Gold Prices Stabilise as Inflation Data Meets Expectations",
-        source: "Reuters",
-        url: "https://example.com/news/5",
-        publishedAt: new Date(Date.now() - 18000000).toISOString(),
-        sentiment: "neutral" as const,
-      },
-      {
-        id: "6",
-        title: "DeFi Protocol Launches New Yield Farming Opportunities",
-        source: "The Block",
-        url: "https://example.com/news/6",
-        publishedAt: new Date(Date.now() - 21600000).toISOString(),
-        sentiment: "positive" as const,
-      },
-      {
-        id: "7",
-        title: "Market Analysis: Altcoin Season Indicators Show Mixed Signals",
-        source: "CryptoSlate",
-        url: "https://example.com/news/7",
-        publishedAt: new Date(Date.now() - 25200000).toISOString(),
+        id: "fallback-1",
+        title: "Unable to load live news. Please configure NEWSDATA_API_KEY environment variable.",
+        source: "System",
+        url: "https://newsdata.io/",
+        publishedAt: new Date().toISOString(),
         sentiment: "neutral" as const,
       },
     ]
-
-    return NextResponse.json({ news: mockNews })
-  } catch (error) {
-    console.error("[v0] News feed error:", error)
-    return NextResponse.json({ news: [] }, { status: 500 })
+    
+    return NextResponse.json({ news: fallbackNews })
   }
+}
+
+// Simple sentiment analysis based on keywords
+function determineSentiment(title: string, description: string): "positive" | "negative" | "neutral" {
+  const text = `${title} ${description || ""}`.toLowerCase()
+  
+  const positiveKeywords = [
+    "surge", "rally", "gain", "rise", "up", "growth", "bull", "breakthrough",
+    "adoption", "success", "profit", "win", "record", "high", "upgrade", "innovation"
+  ]
+  
+  const negativeKeywords = [
+    "crash", "drop", "fall", "down", "bear", "loss", "decline", "concern",
+    "risk", "warning", "threat", "fail", "hack", "scam", "regulatory", "ban"
+  ]
+  
+  const positiveScore = positiveKeywords.filter(keyword => text.includes(keyword)).length
+  const negativeScore = negativeKeywords.filter(keyword => text.includes(keyword)).length
+  
+  if (positiveScore > negativeScore) return "positive"
+  if (negativeScore > positiveScore) return "negative"
+  return "neutral"
 }

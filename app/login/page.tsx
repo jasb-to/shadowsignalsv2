@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from "next/link"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Mail } from "lucide-react"
+import { Mail } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -26,23 +26,41 @@ export default function LoginPage() {
   const supabase = getSupabaseBrowserClient()
 
   const handleResendConfirmation = async () => {
+    console.log("[v0] Resending confirmation email to:", email)
+    
+    if (!email) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address first.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setResendingEmail(true)
     try {
       const { error } = await supabase.auth.resend({
         type: "signup",
         email: email,
         options: {
-          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/dashboard`,
+          emailRedirectTo:
+            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
+            `${window.location.origin}/auth/callback?next=/dashboard`,
         },
       })
 
-      if (error) throw error
+      if (error) {
+        console.error("[v0] Resend error:", error)
+        throw error
+      }
 
+      console.log("[v0] Confirmation email resent successfully")
       toast({
         title: "Confirmation email sent!",
         description: "Please check your inbox and spam folder.",
       })
     } catch (error: any) {
+      console.error("[v0] Resend failed:", error.message)
       toast({
         title: "Failed to resend email",
         description: error.message,
