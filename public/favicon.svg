@@ -1,0 +1,21 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dark background circle -->
+  <circle cx="32" cy="32" r="32" fill="#000000"/>
+  
+  <!-- Gradient signal wave effect -->
+  <defs>
+    <linearGradient id="signalGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0891b2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Signal waves -->
+  <path d="M 12 32 Q 20 20 28 32 Q 36 44 44 32 Q 52 20 60 32" stroke="url(#signalGradient)" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M 10 38 Q 18 28 26 38 Q 34 48 42 38 Q 50 28 58 38" stroke="url(#signalGradient)" stroke-width="2.5" fill="none" opacity="0.6" stroke-linecap="round"/>
+  <path d="M 14 26 Q 22 16 30 26 Q 38 36 46 26 Q 54 16 62 26" stroke="url(#signalGradient)" stroke-width="2" fill="none" opacity="0.4" stroke-linecap="round"/>
+  
+  <!-- Shadow indicator -->
+  <circle cx="32" cy="48" r="3" fill="#06b6d4" opacity="0.8"/>
+  <circle cx="32" cy="48" r="5" fill="none" stroke="#06b6d4" stroke-width="1" opacity="0.4"/>
+</svg>

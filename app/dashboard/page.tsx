@@ -9,7 +9,6 @@ import { MarketCycleCards } from "@/components/market-cycle-cards"
 import { WatchlistPanel } from "@/components/watchlist-manager"
 import { FearGreedIndex } from "@/components/fear-greed-index"
 import { PriceAlerts } from "@/components/price-alerts"
-import { NewsFeed } from "@/components/news-feed"
 
 export default function DashboardPage() {
   const [marketData, setMarketData] = useState<any[]>([])
@@ -69,10 +68,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <PriceAlerts />
-          <NewsFeed />
-        </div>
+        <PriceAlerts />
 
         <WatchlistPanel onAnalyse={(symbol) => setAnalysisSymbol(symbol)} />
 

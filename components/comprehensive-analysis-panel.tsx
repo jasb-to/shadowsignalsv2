@@ -1,11 +1,11 @@
 "use client"
 
-import { X, Activity, Target, AlertCircle, CheckCircle2, TrendingUp, TrendingDown, BarChart3 } from "lucide-react"
+import { X, Activity, Target, AlertCircle, CheckCircle2, TrendingUp, TrendingDown, BarChart3 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
 import { ExportAnalysis } from "@/components/export-analysis"
 import { useWatchlist } from "@/hooks/use-watchlist"
-import { InteractivePriceChart } from "@/components/interactive-price-chart"
+import { SimplePriceDisplay } from "@/components/simple-price-display"
 
 interface AnalysisData {
   symbol: string
@@ -142,7 +142,7 @@ export function ComprehensiveAnalysisPanel({ symbol, onClose }: ComprehensiveAna
           </div>
 
           <div className="p-4 space-y-4">
-            <InteractivePriceChart symbol={symbol} currentPrice={analysisData.currentPrice} />
+            <SimplePriceDisplay symbol={symbol} currentPrice={analysisData.currentPrice} />
 
             <div
               className={`p-4 rounded-lg border ${
