@@ -66,8 +66,9 @@ export default function AdminPage() {
 
       // Check admin status
       if (!userData?.is_admin) {
-        console.log("[v0] Admin: User is not admin, redirecting to dashboard")
-        router.push("/dashboard")
+        console.log("[v0] Admin: User is not admin")
+        setIsAdmin(false)
+        setLoading(false)
         return
       }
 
@@ -79,6 +80,27 @@ export default function AdminPage() {
       router.push("/dashboard")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const grantAdminAccess = async () => {
+    if (!confirm("Grant yourself admin access? This should only be done by the site owner.")) {
+      return
+    }
+    
+    try {
+      const response = await fetch('/api/admin/grant-admin', { method: 'POST' })
+      const data = await response.json()
+      
+      if (data.success) {
+        alert("Admin access granted! Reloading page...")
+        window.location.reload()
+      } else {
+        alert("Failed to grant admin access: " + data.error)
+      }
+    } catch (error) {
+      alert("Failed to grant admin access")
+      console.error(error)
     }
   }
 
@@ -123,7 +145,37 @@ export default function AdminPage() {
   }
 
   if (!isAdmin) {
-    return null
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Card className="bg-gray-900/50 border-gray-800 p-8 max-w-md">
+          <CardHeader>
+            <CardTitle className="text-white text-center">Admin Access Required</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-gray-400">
+              You need admin privileges to access this page.
+            </p>
+            <p className="text-sm text-gray-500">
+              If you are the site owner, click below to grant yourself admin access.
+            </p>
+            <Button
+              onClick={grantAdminAccess}
+              className="w-full bg-cyan-500 hover:bg-cyan-600"
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              Grant Admin Access
+            </Button>
+            <Button
+              onClick={() => router.push('/dashboard')}
+              variant="outline"
+              className="w-full border-gray-700"
+            >
+              Back to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (

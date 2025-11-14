@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Brain, Shield, Zap, BarChart3, Lock, TrendingUp, Clock, Database, Quote } from "lucide-react"
+import { Brain, Shield, Zap, BarChart3, Lock, TrendingUp, Clock, Database, Quote } from 'lucide-react'
 
 export default function HomePage() {
   return (
@@ -90,7 +90,7 @@ export default function HomePage() {
               </div>
               <h3 className="text-xl font-semibold text-white mb-2">AI-Powered Insights</h3>
               <p className="text-gray-400">
-                Advanced FinMA-7B and Mistral models analyze market conditions with institutional-grade precision
+                Advanced FinMA-7B and Mistral models analyse market conditions with institutional-grade precision
               </p>
             </Card>
 
@@ -153,7 +153,7 @@ export default function HomePage() {
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-white mb-4">How ShadowSignals Works</h2>
             <p className="text-gray-400 max-w-2xl mx-auto">
-              Our AI analyzes multiple data sources to provide confluence-based insights
+              Our AI analyses multiple data sources to provide confluence-based insights
             </p>
           </div>
 
