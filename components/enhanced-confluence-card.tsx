@@ -6,26 +6,44 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
 interface EnhancedConfluenceCardProps {
-  symbol: string
-  price: number
-  change: number
-  volume: number
-  source: string
-  confluenceScore: number
-  trend: "bullish" | "bearish" | "neutral"
+  data?: {
+    symbol?: string
+    price?: number
+    change24h?: number
+    volume24h?: number
+    source?: string
+    confluenceScore?: number
+    trend?: "bullish" | "bearish" | "neutral"
+  }
+  symbol?: string
+  price?: number
+  change?: number
+  volume?: number
+  source?: string
+  confluenceScore?: number
+  trend?: "bullish" | "bearish" | "neutral"
   onAnalyse?: () => void
 }
 
 export function EnhancedConfluenceCard({
-  symbol,
-  price,
-  change,
-  volume,
-  source,
-  confluenceScore,
-  trend,
+  data,
+  symbol: propSymbol,
+  price: propPrice,
+  change: propChange,
+  volume: propVolume,
+  source: propSource,
+  confluenceScore: propConfluence,
+  trend: propTrend,
   onAnalyse,
 }: EnhancedConfluenceCardProps) {
+  const symbol = data?.symbol || propSymbol || "N/A"
+  const price = data?.price ?? propPrice ?? 0
+  const change = data?.change24h ?? propChange ?? 0
+  const volume = data?.volume24h ?? propVolume ?? 0
+  const source = data?.source || propSource || "Unknown"
+  const confluenceScore = data?.confluenceScore ?? propConfluence ?? 50
+  const trend = data?.trend || propTrend || "neutral"
+
   const [loadingInsights, setLoadingInsights] = useState(false)
 
   const handleGetInsights = async () => {
@@ -34,8 +52,16 @@ export function EnhancedConfluenceCard({
     }
   }
 
-  const isPositive = change > 0
+  const safePrice = typeof price === "number" && !isNaN(price) ? price : 0
+  const safeChange = typeof change === "number" && !isNaN(change) ? change : 0
+  const safeVolume = typeof volume === "number" && !isNaN(volume) ? volume : 0
+  const safeScore = typeof confluenceScore === "number" && !isNaN(confluenceScore) ? confluenceScore : 50
+
+  const isPositive = safeChange > 0
   const TrendIcon = isPositive ? TrendingUp : TrendingDown
+
+  const displayTrend =
+    trend !== "neutral" ? trend : safeChange > 1 ? "bullish" : safeChange < -1 ? "bearish" : "neutral"
 
   return (
     <Card className="bg-black/50 border-cyan-500/30 hover:border-cyan-500/60 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/20">
@@ -53,7 +79,7 @@ export function EnhancedConfluenceCard({
             <TrendIcon className="h-3 w-3" />
             <span className="text-xs font-semibold">
               {isPositive ? "+" : ""}
-              {change.toFixed(2)}%
+              {safeChange.toFixed(2)}%
             </span>
           </div>
         </div>
@@ -64,9 +90,9 @@ export function EnhancedConfluenceCard({
         <div>
           <p className="text-3xl font-bold text-white">
             $
-            {price.toLocaleString(undefined, {
+            {safePrice.toLocaleString(undefined, {
               minimumFractionDigits: 2,
-              maximumFractionDigits: price < 1 ? 6 : 2,
+              maximumFractionDigits: safePrice < 1 ? 6 : 2,
             })}
           </p>
         </div>
@@ -75,12 +101,12 @@ export function EnhancedConfluenceCard({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-400">Confluence Score</span>
-            <span className="text-sm font-semibold text-cyan-400">{confluenceScore}/100</span>
+            <span className="text-sm font-semibold text-cyan-400">{safeScore}/100</span>
           </div>
           <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-cyan-500 to-cyan-400 transition-all duration-500"
-              style={{ width: `${confluenceScore}%` }}
+              style={{ width: `${safeScore}%` }}
             />
           </div>
         </div>
@@ -88,7 +114,12 @@ export function EnhancedConfluenceCard({
         {/* Volume */}
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-400">24h Volume</span>
-          <span className="text-white font-medium">${(volume / 1000000).toFixed(2)}M</span>
+          <span className="text-white font-medium">
+            $
+            {safeVolume > 1000000000
+              ? (safeVolume / 1000000000).toFixed(2) + "B"
+              : (safeVolume / 1000000).toFixed(2) + "M"}
+          </span>
         </div>
 
         {/* Trend Badge */}
@@ -97,10 +128,14 @@ export function EnhancedConfluenceCard({
           <span className="text-sm text-gray-400">Trend:</span>
           <span
             className={`text-sm font-semibold ${
-              trend === "bullish" ? "text-green-400" : trend === "bearish" ? "text-red-400" : "text-gray-400"
+              displayTrend === "bullish"
+                ? "text-green-400"
+                : displayTrend === "bearish"
+                  ? "text-red-400"
+                  : "text-gray-400"
             }`}
           >
-            {trend.charAt(0).toUpperCase() + trend.slice(1)}
+            {displayTrend.charAt(0).toUpperCase() + displayTrend.slice(1)}
           </span>
         </div>
 
