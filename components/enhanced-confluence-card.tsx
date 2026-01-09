@@ -47,6 +47,17 @@ export function EnhancedConfluenceCard({
   const [loadingInsights, setLoadingInsights] = useState(false)
 
   const handleGetInsights = async () => {
+    console.log("[v0] Analyse button clicked for symbol:", symbol)
+    console.log("[v0] onAnalyse callback exists:", !!onAnalyse)
+    if (onAnalyse) {
+      onAnalyse()
+    } else {
+      console.error("[v0] No onAnalyse callback provided")
+    }
+  }
+
+  const handleSymbolClick = () => {
+    console.log("[v0] Symbol clicked:", symbol)
     if (onAnalyse) {
       onAnalyse()
     }
@@ -68,7 +79,12 @@ export function EnhancedConfluenceCard({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div>
-            <CardTitle className="text-xl font-bold text-white">{symbol}</CardTitle>
+            <CardTitle
+              className="text-xl font-bold text-white cursor-pointer hover:text-cyan-400 transition-colors"
+              onClick={handleSymbolClick}
+            >
+              {symbol}
+            </CardTitle>
             <p className="text-xs text-gray-500 mt-1">Source: {source}</p>
           </div>
           <div

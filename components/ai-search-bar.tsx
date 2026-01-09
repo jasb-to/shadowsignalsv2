@@ -61,10 +61,10 @@ const POPULAR_ASSETS = [
 ]
 
 interface AISearchBarProps {
-  onAnalysisOpen?: (symbol: string) => void
+  onAnalyse?: (symbol: string) => void
 }
 
-export function AISearchBar({ onAnalysisOpen }: AISearchBarProps) {
+export function AISearchBar({ onAnalyse }: AISearchBarProps) {
   const [query, setQuery] = useState("")
   const [showDropdown, setShowDropdown] = useState(false)
   const [filteredAssets, setFilteredAssets] = useState(POPULAR_ASSETS)
@@ -96,19 +96,23 @@ export function AISearchBar({ onAnalysisOpen }: AISearchBarProps) {
   }, [])
 
   const handleAssetSelect = async (symbol: string) => {
+    console.log("[v0] Asset selected from dropdown:", symbol)
     setQuery(symbol)
     setShowDropdown(false)
-    if (onAnalysisOpen) {
-      onAnalysisOpen(symbol)
+    if (onAnalyse) {
+      console.log("[v0] Calling onAnalyse with symbol:", symbol)
+      onAnalyse(symbol)
     }
   }
 
   const handleAnalyse = async (searchSymbol?: string) => {
     const symbolToAnalyse = searchSymbol || query.trim()
+    console.log("[v0] Analyse button clicked with symbol:", symbolToAnalyse)
     if (!symbolToAnalyse) return
 
-    if (onAnalysisOpen) {
-      onAnalysisOpen(symbolToAnalyse)
+    if (onAnalyse) {
+      console.log("[v0] Calling onAnalyse callback")
+      onAnalyse(symbolToAnalyse)
     }
   }
 

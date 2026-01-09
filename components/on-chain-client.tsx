@@ -20,6 +20,8 @@ interface OnChainStats {
   totalVolume: string
   smartMoney: number
   activeSignals: number
+  lastUpdated?: string
+  nextUpdate?: string
 }
 
 export function OnChainClient() {
@@ -40,18 +42,52 @@ export function OnChainClient() {
   const fetchOnChainData = async () => {
     setLoading(true)
     try {
+      console.log("[v0] Fetching whale tracker data...")
       const response = await fetch("/api/on-chain/whale-tracker")
+
+      if (!response.ok) {
+        console.error("[v0] Whale tracker API responded with status:", response.status)
+        throw new Error(`API error: ${response.status}`)
+      }
+
       const data = await response.json()
-      setStats(data.stats)
-      setTransactions(data.transactions)
+      console.log("[v0] Whale tracker data received:", data)
+      console.log("[v0] Stats:", data.stats)
+      console.log("[v0] Transactions count:", data.transactions?.length || 0)
+
+      if (data.stale) {
+        console.warn("[v0] Using stale whale data due to API issues")
+      }
+
+      setStats(
+        data.stats || {
+          whaleTransactions: 0,
+          totalVolume: "$0.0M",
+          smartMoney: 0,
+          activeSignals: 0,
+        },
+      )
+      setTransactions(data.transactions || [])
+
+      if (data.transactions && data.transactions.length > 0) {
+        console.log("[v0] First 3 transactions:", data.transactions.slice(0, 3))
+      }
     } catch (error) {
       console.error("[v0] Error fetching on-chain data:", error)
+      setStats({
+        whaleTransactions: 0,
+        totalVolume: "$0.0M",
+        smartMoney: 0,
+        activeSignals: 0,
+      })
+      setTransactions([])
     } finally {
       setLoading(false)
     }
   }
 
   const formatAddress = (address: string) => {
+    if (!address) return "Unknown"
     return `${address.slice(0, 6)}...${address.slice(-4)}`
   }
 
@@ -60,7 +96,15 @@ export function OnChainClient() {
     if (num >= 1000) {
       return `${(num / 1000).toFixed(2)}K`
     }
-    return num.toFixed(4)
+    return num.toFixed(2)
+  }
+
+  const formatTime = (timestamp: string) => {
+    try {
+      return new Date(timestamp).toLocaleString()
+    } catch {
+      return "Unknown"
+    }
   }
 
   return (
@@ -116,6 +160,12 @@ export function OnChainClient() {
           </Card>
         </div>
 
+        {stats.lastUpdated && (
+          <div className="mb-4 text-sm text-gray-500 text-center">
+            Last updated: {formatTime(stats.lastUpdated)} • Data refreshes daily at midnight UTC
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="flex gap-2 mb-6">
           <Button
@@ -135,6 +185,7 @@ export function OnChainClient() {
           <Button
             variant="outline"
             onClick={fetchOnChainData}
+            disabled={loading}
             className="border-cyan-500/30 text-cyan-400 ml-auto bg-transparent"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
@@ -184,9 +235,16 @@ export function OnChainClient() {
         {activeTab === "transactions" && (
           <Card className="bg-black/50 border-cyan-500/20 overflow-hidden">
             {loading ? (
-              <div className="p-8 text-center text-gray-400">Loading transactions...</div>
+              <div className="p-8 text-center text-gray-400">
+                <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-2" />
+                Loading transactions...
+              </div>
             ) : transactions.length === 0 ? (
-              <div className="p-8 text-center text-gray-400">No recent whale transactions found</div>
+              <div className="p-8 text-center">
+                <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+                <p className="text-gray-400 text-lg mb-2">No recent whale transactions found</p>
+                <p className="text-gray-500 text-sm">Data is fetched once daily. Try refreshing or check back later.</p>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -211,9 +269,7 @@ export function OnChainClient() {
                           {formatValue(tx.value)}
                         </td>
                         <td className="px-4 py-3 text-sm text-green-400 text-right">{tx.valueUSD}</td>
-                        <td className="px-4 py-3 text-sm text-gray-400 text-right">
-                          {new Date(tx.timestamp).toLocaleTimeString()}
-                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-400 text-right">{formatTime(tx.timestamp)}</td>
                         <td className="px-4 py-3 text-center">
                           <a
                             href={`https://etherscan.io/tx/${tx.hash}`}

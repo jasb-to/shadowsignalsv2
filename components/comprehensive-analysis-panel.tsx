@@ -1,6 +1,6 @@
 "use client"
 
-import { X, Activity, Target, AlertCircle, CheckCircle2, TrendingUp, TrendingDown, BarChart3 } from 'lucide-react'
+import { X, Activity, Target, AlertCircle, CheckCircle2, TrendingUp, TrendingDown, BarChart3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
 import { ExportAnalysis } from "@/components/export-analysis"
@@ -68,10 +68,19 @@ export function ComprehensiveAnalysisPanel({ symbol, onClose }: ComprehensiveAna
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist()
 
   useEffect(() => {
+    console.log("[v0] ComprehensiveAnalysisPanel mounted with symbol:", symbol)
+
     const fetchAnalysis = async () => {
       try {
+        console.log("[v0] Fetching analysis for:", symbol)
         const response = await fetch(`/api/comprehensive-analysis?symbol=${symbol}`)
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`)
+        }
+
         const data = await response.json()
+        console.log("[v0] Analysis data received:", data)
         setAnalysisData(data)
       } catch (error) {
         console.error("[v0] Failed to fetch analysis:", error)
@@ -86,7 +95,7 @@ export function ComprehensiveAnalysisPanel({ symbol, onClose }: ComprehensiveAna
   if (loading || !analysisData) {
     return (
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div className="text-white">Loading analysis...</div>
+        <div className="text-white">Loading analysis for {symbol}...</div>
       </div>
     )
   }
@@ -131,7 +140,10 @@ export function ComprehensiveAnalysisPanel({ symbol, onClose }: ComprehensiveAna
               </Button>
               <ExportAnalysis symbol={symbol} data={analysisData} />
               <Button
-                onClick={onClose}
+                onClick={() => {
+                  console.log("[v0] Close button clicked")
+                  onClose()
+                }}
                 variant="ghost"
                 size="icon"
                 className="text-gray-400 hover:text-white hover:bg-cyan-500/10"

@@ -66,7 +66,13 @@ export function DashboardClient() {
 
         {/* Comprehensive Analysis Panel */}
         {analysisSymbol && (
-          <ComprehensiveAnalysisPanel symbol={analysisSymbol} onClose={() => setAnalysisSymbol(null)} />
+          <ComprehensiveAnalysisPanel
+            symbol={analysisSymbol}
+            onClose={() => {
+              console.log("[v0] Closing analysis panel")
+              setAnalysisSymbol(null)
+            }}
+          />
         )}
 
         {/* Market Cycle Analysis */}
@@ -88,13 +94,19 @@ export function DashboardClient() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {marketData.map((data, index) => (
-                <EnhancedConfluenceCard
-                  key={data?.symbol || index}
-                  data={data}
-                  onAnalyse={() => setAnalysisSymbol(data?.symbol)}
-                />
-              ))}
+              {marketData.map((data, index) => {
+                console.log(`[v0] Rendering card for ${data?.symbol}, has data:`, !!data)
+                return (
+                  <EnhancedConfluenceCard
+                    key={data?.symbol || index}
+                    data={data}
+                    onAnalyse={() => {
+                      console.log("[v0] Setting analysis symbol to:", data?.symbol)
+                      setAnalysisSymbol(data?.symbol)
+                    }}
+                  />
+                )
+              })}
             </div>
           )}
         </div>
