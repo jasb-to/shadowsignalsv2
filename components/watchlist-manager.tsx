@@ -1,11 +1,62 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { useWatchlist } from "@/hooks/use-watchlist"
 
 export function WatchlistPanel({ onAnalyse }: { onAnalyse: (symbol: string) => void }) {
-  const { watchlist, prices, removeFromWatchlist } = useWatchlist()
+  const [watchlist, setWatchlist] = useState<{ symbol: string }[]>([])
+  const [prices, setPrices] = useState<Record<string, { price: number; change: number }>>({})
+
+  useEffect(() => {
+    // Load from localStorage
+    const stored = localStorage.getItem("shadowsignals_watchlist")
+    if (stored) {
+      setWatchlist(JSON.parse(stored))
+    }
+
+    const handleUpdate = () => {
+      const stored = localStorage.getItem("shadowsignals_watchlist")
+      if (stored) {
+        setWatchlist(JSON.parse(stored))
+      }
+    }
+
+    window.addEventListener("watchlistUpdated", handleUpdate)
+    return () => window.removeEventListener("watchlistUpdated", handleUpdate)
+  }, [])
+
+  useEffect(() => {
+    const fetchPrices = async () => {
+      for (const item of watchlist) {
+        try {
+          const res = await fetch(`/api/market-data?symbol=${item.symbol}`)
+          if (res.ok) {
+            const data = await res.json()
+            setPrices((prev) => ({
+              ...prev,
+              [item.symbol]: { price: data.price, change: data.change24h },
+            }))
+          }
+        } catch (e) {
+          console.error(`Failed to fetch price for ${item.symbol}`)
+        }
+      }
+    }
+
+    if (watchlist.length > 0) {
+      fetchPrices()
+      const interval = setInterval(fetchPrices, 60000)
+      return () => clearInterval(interval)
+    }
+  }, [watchlist])
+
+  const removeFromWatchlist = (symbol: string) => {
+    const updated = watchlist.filter((item) => item.symbol !== symbol)
+    setWatchlist(updated)
+    localStorage.setItem("shadowsignals_watchlist", JSON.stringify(updated))
+    window.dispatchEvent(new Event("watchlistUpdated"))
+  }
 
   if (watchlist.length === 0) {
     return (
@@ -66,4 +117,36 @@ export function WatchlistPanel({ onAnalyse }: { onAnalyse: (symbol: string) => v
       </div>
     </Card>
   )
+}
+
+export function useWatchlist() {
+  const [watchlist, setWatchlist] = useState<{ symbol: string }[]>([])
+  const [prices, setPrices] = useState<Record<string, { price: number; change: number }>>({})
+
+  useEffect(() => {
+    const stored = localStorage.getItem("shadowsignals_watchlist")
+    if (stored) {
+      setWatchlist(JSON.parse(stored))
+    }
+  }, [])
+
+  const addToWatchlist = (symbol: string) => {
+    const updated = [...watchlist, { symbol }]
+    setWatchlist(updated)
+    localStorage.setItem("shadowsignals_watchlist", JSON.stringify(updated))
+    window.dispatchEvent(new Event("watchlistUpdated"))
+  }
+
+  const removeFromWatchlist = (symbol: string) => {
+    const updated = watchlist.filter((item) => item.symbol !== symbol)
+    setWatchlist(updated)
+    localStorage.setItem("shadowsignals_watchlist", JSON.stringify(updated))
+    window.dispatchEvent(new Event("watchlistUpdated"))
+  }
+
+  const isInWatchlist = (symbol: string) => {
+    return watchlist.some((item) => item.symbol === symbol)
+  }
+
+  return { watchlist, prices, addToWatchlist, removeFromWatchlist, isInWatchlist }
 }

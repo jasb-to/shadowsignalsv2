@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Brain, Shield, Zap, BarChart3, Lock, TrendingUp, Clock, Database, Quote } from 'lucide-react'
+import { Brain, Shield, Zap, BarChart3, Lock, TrendingUp, Clock, Database, Quote } from "lucide-react"
 
 export default function HomePage() {
   return (
@@ -14,7 +14,7 @@ export default function HomePage() {
             <div className="inline-block">
               <div className="flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/30 rounded-full px-4 py-2 text-sm text-cyan-400">
                 <Zap className="w-4 h-4" />
-                <span>AI-Powered Market Intelligence</span>
+                <span>100% Free - AI-Powered Market Intelligence</span>
               </div>
             </div>
 
@@ -30,8 +30,8 @@ export default function HomePage() {
 
             <p className="text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
               ShadowSignals combines advanced AI models with multi-indicator confluence analysis, multi-chain support,
-              and real-time on-chain whale tracking to deliver institutional-grade market insights. Make informed
-              decisions backed by data, not emotions.
+              and real-time on-chain whale tracking to deliver institutional-grade market insights. Completely free, no
+              registration required.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -40,7 +40,7 @@ export default function HomePage() {
                   size="lg"
                   className="bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-black font-semibold text-lg px-8"
                 >
-                  Access Platform
+                  Open Platform - It's Free
                 </Button>
               </Link>
               <Link href="/#how-it-works">
@@ -79,7 +79,7 @@ export default function HomePage() {
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-white mb-4">Professional-Grade Analysis Tools</h2>
             <p className="text-gray-400 max-w-2xl mx-auto">
-              Leverage the same confluence analysis techniques used by institutional traders
+              Leverage the same confluence analysis techniques used by institutional traders - completely free
             </p>
           </div>
 
@@ -247,7 +247,7 @@ export default function HomePage() {
                 <Quote className="w-8 h-8 text-cyan-500 flex-shrink-0" />
                 <div>
                   <p className="text-gray-300 mb-4 leading-relaxed">
-                    "The support and resistance levels combined with the signal strength visualization make it so much
+                    "The support and resistance levels combined with the signal strength visualisation make it so much
                     easier to spot high-probability setups. I use it daily for both crypto and forex analysis."
                   </p>
                   <div>
@@ -284,14 +284,14 @@ export default function HomePage() {
           <Card className="bg-black/50 border-cyan-500/30 p-12 text-center">
             <h2 className="text-4xl font-bold text-white mb-4">Ready to Elevate Your Analysis?</h2>
             <p className="text-gray-400 mb-8 max-w-2xl mx-auto">
-              Join traders using ShadowSignals for professional confluence-based market insights
+              Join traders using ShadowSignals for professional confluence-based market insights - completely free
             </p>
             <Link href="/dashboard">
               <Button
                 size="lg"
                 className="bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-black font-semibold text-lg px-8"
               >
-                Access Platform Now
+                Open Platform - No Registration Required
               </Button>
             </Link>
           </Card>

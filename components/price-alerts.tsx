@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 
 interface Alert {
   id: string
@@ -23,42 +22,12 @@ export function PriceAlerts() {
   const [newPrice, setNewPrice] = useState("")
   const [newCondition, setNewCondition] = useState<"above" | "below">("above")
   const [isOpen, setIsOpen] = useState(false)
-  const [user, setUser] = useState<any>(null)
   const { toast } = useToast()
-  const supabase = getSupabaseBrowserClient()
 
-  const loadAlerts = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    setUser(user)
-
-    if (user) {
-      // Load from Supabase for authenticated users
-      const { data, error } = await supabase
-        .from("price_alerts")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-
-      if (!error && data) {
-        const items = data.map((item) => ({
-          id: item.id,
-          symbol: item.symbol,
-          targetPrice: item.target_price,
-          condition: item.direction as "above" | "below",
-          currentPrice: 0,
-          createdAt: new Date(item.created_at).getTime(),
-        }))
-        setAlerts(items)
-      }
-    } else {
-      // Load from localStorage for non-authenticated users
-      const stored = localStorage.getItem("shadowsignals_alerts")
-      if (stored) {
-        setAlerts(JSON.parse(stored))
-      }
+  const loadAlerts = () => {
+    const stored = localStorage.getItem("shadowsignals_alerts")
+    if (stored) {
+      setAlerts(JSON.parse(stored))
     }
   }
 
@@ -74,14 +43,12 @@ export function PriceAlerts() {
   }, [])
 
   const saveAlerts = (updatedAlerts: Alert[]) => {
-    if (!user) {
-      localStorage.setItem("shadowsignals_alerts", JSON.stringify(updatedAlerts))
-    }
+    localStorage.setItem("shadowsignals_alerts", JSON.stringify(updatedAlerts))
     window.dispatchEvent(new Event("alertsUpdated"))
     setAlerts(updatedAlerts)
   }
 
-  const addAlert = async () => {
+  const addAlert = () => {
     if (!newSymbol || !newPrice) {
       toast({
         title: "Invalid Input",
@@ -91,37 +58,17 @@ export function PriceAlerts() {
       return
     }
 
-    if (user) {
-      // Save to Supabase for authenticated users
-      const { error } = await supabase.from("price_alerts").insert({
-        user_id: user.id,
-        symbol: newSymbol.toUpperCase(),
-        target_price: Number.parseFloat(newPrice),
-        direction: newCondition,
-      })
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to create alert",
-          variant: "destructive",
-        })
-        return
-      }
-    } else {
-      // Save to localStorage for non-authenticated users
-      const alert: Alert = {
-        id: Date.now().toString(),
-        symbol: newSymbol.toUpperCase(),
-        targetPrice: Number.parseFloat(newPrice),
-        condition: newCondition,
-        currentPrice: 0,
-        createdAt: Date.now(),
-      }
-
-      const updatedAlerts = [...alerts, alert]
-      saveAlerts(updatedAlerts)
+    const alert: Alert = {
+      id: Date.now().toString(),
+      symbol: newSymbol.toUpperCase(),
+      targetPrice: Number.parseFloat(newPrice),
+      condition: newCondition,
+      currentPrice: 0,
+      createdAt: Date.now(),
     }
+
+    const updatedAlerts = [...alerts, alert]
+    saveAlerts(updatedAlerts)
 
     toast({
       title: "Alert Created",
@@ -131,34 +78,16 @@ export function PriceAlerts() {
     setNewSymbol("")
     setNewPrice("")
     setIsOpen(false)
-    loadAlerts()
   }
 
-  const removeAlert = async (id: string) => {
-    if (user) {
-      // Remove from Supabase for authenticated users
-      const { error } = await supabase.from("price_alerts").delete().eq("id", id).eq("user_id", user.id)
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to remove alert",
-          variant: "destructive",
-        })
-        return
-      }
-    } else {
-      // Remove from localStorage for non-authenticated users
-      const updatedAlerts = alerts.filter((a) => a.id !== id)
-      saveAlerts(updatedAlerts)
-    }
+  const removeAlert = (id: string) => {
+    const updatedAlerts = alerts.filter((a) => a.id !== id)
+    saveAlerts(updatedAlerts)
 
     toast({
       title: "Alert Removed",
       description: "Price alert has been deleted",
     })
-
-    loadAlerts()
   }
 
   return (

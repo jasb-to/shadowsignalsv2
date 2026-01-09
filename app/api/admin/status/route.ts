@@ -29,35 +29,47 @@ async function checkEndpoint(url: string, timeout = 5000): Promise<{ online: boo
 export async function GET() {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   
+  let marketData = null
+  try {
+    const response = await fetch(`${baseUrl}/api/market-data?symbol=BTC`)
+    if (response.ok) {
+      marketData = await response.json()
+    }
+  } catch (error) {
+    console.error('[v0] Failed to fetch market data:', error)
+  }
+
   // Check all API endpoints in parallel
-  const [marketOverview, tokenData, aiAnalysis, twelveData, huggingface, marketData] = await Promise.all([
+  const [marketOverview, tokenData, aiAnalysis, twelveData, huggingface] = await Promise.all([
     checkEndpoint(`${baseUrl}/api/market-data?symbol=BTC`),
     checkEndpoint(`${baseUrl}/api/market-data?symbol=ETH`),
     checkEndpoint(`${baseUrl}/api/ai-search`),
     checkEndpoint(`${baseUrl}/api/market-data?symbol=BTC`),
     checkEndpoint(`${baseUrl}/api/comprehensive-analysis?symbol=BTC&timeframe=1d`),
-    fetch(`${baseUrl}/api/market-data?symbol=BTC`).then(res => res.json()).catch(() => null),
   ])
 
-  // Fetch live market data for overview
   let marketStats = {
     totalMarketCap: "$N/A",
     volume24h: "$N/A",
     change24h: "N/A%",
   }
 
-  if (marketData?.current_price) {
+  if (marketData && marketData.price) {
     try {
-      // Calculate approximate market stats from BTC price
-      const btcPrice = marketData.current_price
-      const estimatedMarketCap = btcPrice * 19500000 // Approximate BTC in circulation
+      const btcPrice = marketData.price
+      const btcSupply = 19500000 // Approximate BTC in circulation
+      const btcMarketCap = btcPrice * btcSupply
+      
+      // Bitcoin dominance is roughly 50%, so total market cap is ~2x BTC market cap
+      const totalMarketCap = btcMarketCap * 2
+      
       marketStats = {
-        totalMarketCap: `$${(estimatedMarketCap / 1000000000).toFixed(2)}B`,
-        volume24h: `$${(marketData.volume_24h || 0).toFixed(2)}`,
-        change24h: `${(marketData.price_change_percentage_24h || 0).toFixed(2)}%`,
+        totalMarketCap: `$${(totalMarketCap / 1000000000).toFixed(2)}B`,
+        volume24h: marketData.volume24h ? `$${(marketData.volume24h / 1000000000).toFixed(2)}B` : "$N/A",
+        change24h: `${marketData.change24h.toFixed(2)}%`,
       }
     } catch (error) {
-      console.error('Failed to calculate market stats:', error)
+      console.error('[v0] Failed to calculate market stats:', error)
     }
   }
 
