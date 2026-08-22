@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { buildMarketState } from "../../../lib/market-state/build-market-state"
-import { recordMarketState } from "../../../lib/market-state/memory"
-import type { OHLCVBar } from "../../../lib/market-state/types"
+import { buildMarketState } from "../../../../lib/market-state/build-market-state"
+import { recordMarketState } from "../../../../lib/market-state/memory"
+import type { OHLCVBar } from "../../../../lib/market-state/types"
 
 export async function GET(req: NextRequest) {
   const symbol = req.nextUrl.searchParams.get("symbol")?.toUpperCase()
