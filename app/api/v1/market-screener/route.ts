@@ -1,0 +1,4 @@
+import { NextRequest, NextResponse } from "next/server"
+import { buildMarketState, type OHLCVBar } from "../../../../lib/market-state"
+const symbols=(process.env.SHADOW_SCREEN_SYMBOLS||"BTC,ETH,SOL,BNB,XRP,ADA,DOGE").split(",").map(s=>s.trim()).filter(Boolean)
+export async function GET(req:NextRequest){const interval=req.nextUrl.searchParams.get("interval")||"1h";const results=await Promise.allSettled(symbols.map(async symbol=>{const r=await fetch(new URL(`/api/market-history?symbol=${symbol}&interval=${interval}&days=30`,req.url),{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||symbol);return buildMarketState(symbol,d.bars as OHLCVBar[])}));return NextResponse.json({interval,results:results.map((r,i)=>r.status==='fulfilled'?r.value:{symbol:symbols[i],error:r.reason?.message||'unavailable'})})}
