@@ -1,35 +1,5 @@
-import { createClient } from "@supabase/supabase-js"
 import type { MarketState } from "./types"
-
-function supabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return null
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
-}
-
-export async function persistMarketState(state: MarketState, timeframe = "1h") {
-  const client = supabase()
-  if (!client) return { persisted: false, reason: "supabase_not_configured" as const }
-  const { data, error } = await client.from("market_states").insert({
-    symbol: state.symbol, timeframe, price: state.price, change_24h: state.change24h,
-    trend: state.trend, regime: state.regime, momentum: state.momentum, volatility: state.volatility,
-    signal: state.signal, confidence: state.confidence, indicators: state.indicators,
-    support_resistance: state.supportResistance, evidence: state.evidence, invalidation: state.invalidation,
-    source: "market-state-engine",
-  }).select("id").single()
-  if (error) return { persisted: false, reason: error.message as string }
-  return { persisted: true, id: data.id as string }
-}
-
-export async function getSimilarMarketStates(state: MarketState, timeframe = "1h", limit = 25) {
-  const client = supabase()
-  if (!client) return []
-  const { data } = await client.from("market_states")
-    .select("id,symbol,timeframe,captured_at,price,trend,regime,momentum,volatility,signal,confidence")
-    .eq("timeframe", timeframe).eq("trend", state.trend).eq("regime", state.regime)
-    .gte("momentum", state.momentum - 10).lte("momentum", state.momentum + 10)
-    .gte("volatility", state.volatility - 3).lte("volatility", state.volatility + 3)
-    .order("captured_at", { ascending: false }).limit(limit)
-  return data ?? []
-}
+function cfg(){return{url:process.env.NEXT_PUBLIC_SUPABASE_URL,key:process.env.SUPABASE_SERVICE_ROLE_KEY}}
+async function query(path:string,init:RequestInit={}){const{url,key}=cfg();if(!url||!key)return null;const r=await fetch(`${url}/rest/v1/${path}`,{...init,headers:{apikey:key,Authorization:`Bearer ${key}`,"Content-Type":"application/json",...(init.headers||{})},cache:"no-store"});if(!r.ok)throw new Error(`Supabase ${r.status}: ${await r.text()}`);return r.status===204?null:r.json()}
+export async function persistMarketState(state:MarketState,timeframe="1h"){try{const data=await query("market_states",{method:"POST",headers:{Prefer:"return=representation"},body:JSON.stringify({symbol:state.symbol,timeframe,price:state.price,change_24h:state.change24h,trend:state.trend,regime:state.regime,momentum:state.momentum,volatility:state.volatility,signal:state.signal,confidence:state.confidence,indicators:state.indicators,support_resistance:state.supportResistance,evidence:state.evidence,invalidation:state.invalidation,source:"market-state-engine"})});return data?.[0]?.id?{persisted:true,id:data[0].id}:{persisted:false,reason:"supabase_not_configured"}}catch(e){return{persisted:false,reason:e instanceof Error?e.message:"supabase_error"}}}
+export async function getSimilarMarketStates(state:MarketState,timeframe="1h",limit=25){try{const p=new URLSearchParams({select:"id,symbol,timeframe,captured_at,price,trend,regime,momentum,volatility,signal,confidence",timeframe:`eq.${timeframe}`,trend:`eq.${state.trend}`,regime:`eq.${state.regime}`,momentum:`gte.${state.momentum-10}`,volatility:`gte.${state.volatility-3}`,order:"captured_at.desc",limit:String(limit)});const data=await query(`market_states?${p}`);return Array.isArray(data)?data:[]}catch{return[]}}
