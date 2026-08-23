@@ -2,30 +2,15 @@ import type { Metadata } from "next"
 import { DashboardClient } from "@/components/dashboard-client"
 
 export const metadata: Metadata = {
-  title: "Live Crypto Dashboard - Real-Time Bitcoin, Ethereum & Stock Analysis",
-  description:
-    "Free real-time cryptocurrency and stock market dashboard. Live Bitcoin price analysis, Ethereum tracking, confluence scoring, fear & greed index, and AI-powered market insights. Updated every 5 minutes.",
-  keywords: [
-    "crypto dashboard",
-    "bitcoin dashboard",
-    "ethereum dashboard",
-    "live crypto prices",
-    "real-time market analysis",
-    "cryptocurrency tracker",
-    "stock market dashboard",
-    "bitcoin price live",
-    "crypto trading dashboard",
-    "market analytics dashboard",
-  ],
+  title: "A³ Terminal — Live Market Intelligence",
+  description: "A³ market intelligence terminal: live data, analysis, cycle intelligence, confluence, risk and decision context.",
+  keywords: ["A3 Markets", "market intelligence", "crypto analysis", "market terminal", "AI market analysis"],
   openGraph: {
-    title: "Live Crypto Dashboard - Real-Time Market Analysis | ShadowSignals",
-    description:
-      "Free real-time cryptocurrency and stock market dashboard with AI-powered analysis and confluence scoring.",
-    url: "https://www.shadowsignals.live/dashboard",
+    title: "A³ Terminal — Market Intelligence",
+    description: "Artificial Intelligence × Analysis × Action.",
+    url: "https://a3markets.vercel.app/dashboard",
   },
-  alternates: {
-    canonical: "https://www.shadowsignals.live/dashboard",
-  },
+  alternates: { canonical: "https://a3markets.vercel.app/dashboard" },
 }
 
 export default function DashboardPage() {
