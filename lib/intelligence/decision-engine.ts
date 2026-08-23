@@ -1,0 +1,4 @@
+export type Thesis = "ACCUMULATE" | "BUY" | "HOLD" | "REDUCE" | "SELL"
+export interface DecisionInput { tacticalScore:number; strategicScore:number; cycleScore:number; breadthScore:number; riskScore:number }
+export interface DecisionOutput { thesis:Thesis; score:number; confidence:number; drivers:string[] }
+export function decide(i:DecisionInput):DecisionOutput { const score=Math.round(i.tacticalScore*.2+i.strategicScore*.3+i.cycleScore*.25+i.breadthScore*.15+i.riskScore*.1); const thesis:Thesis=score>=75?"ACCUMULATE":score>=60?"BUY":score>=40?"HOLD":score>=25?"REDUCE":"SELL"; const confidence=Math.min(95,Math.max(35,Math.round(50+Math.abs(score-50)*.9))); const drivers=[`Strategic regime ${i.strategicScore}/100`,`Cycle position ${i.cycleScore}/100`,`Tactical conditions ${i.tacticalScore}/100`,`Market breadth ${i.breadthScore}/100`,`Risk conditions ${i.riskScore}/100`]; return {thesis,score,confidence,drivers} }
