@@ -1,0 +1,3 @@
+import { resolveForecasts } from "./forecast-store"
+const symbols=(process.env.A3_FORECAST_SYMBOLS||"BTC,ETH,SOL,XAU/USD,SPX,NDX,TSLA,AAPL").split(",").map(s=>s.trim()).filter(Boolean)
+export async function resolveAllForecasts(fetchPrice:(symbol:string)=>Promise<number|null>){let resolved=0;const errors:string[]=[];for(const symbol of symbols){try{const price=await fetchPrice(symbol);if(price==null)continue;const result=await resolveForecasts(symbol,price);resolved+=result.resolved}catch(e){errors.push(`${symbol}:${e instanceof Error?e.message:"resolution_error"}`)}}return{resolved,errors,symbols:symbols.length,at:new Date().toISOString()}}
