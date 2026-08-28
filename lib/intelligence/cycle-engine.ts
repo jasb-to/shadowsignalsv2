@@ -5,7 +5,7 @@ const clamp=(n:number,a=0,b=100)=>Math.max(a,Math.min(b,n))
 export function runCycleEngine(i:CycleInput):CycleResult{
  const dd=i.drawdownPct??(i.ath>0?(i.price/i.ath-1)*100:0);let score=50;const signals:string[]=[]
  if(dd<=-70){score-=32;signals.push("deep ATH drawdown")}else if(dd<=-55){score-=24;signals.push("severe ATH drawdown")}else if(dd<=-40){score-=14;signals.push("material ATH drawdown")}else if(dd>=-12){score+=22;signals.push("near cycle highs")}
- if(i.rsi!=null){if(i.rsi<30){score-=18;signals.push("oversold momentum")}else if(i.rsi<40){score-=8;signals.push("weak momentum")}else if(i.rsi>75){score+=18;signals.push("extreme momentum")}else if(i.rsi>68){score+=9;signals.push("elevated momentum")}
+ if(i.rsi!=null){if(i.rsi<30){score-=18;signals.push("oversold momentum")}else if(i.rsi<40){score-=8;signals.push("weak momentum")}else if(i.rsi>75){score+=18;signals.push("extreme momentum")}else if(i.rsi>68){score+=9;signals.push("elevated momentum")}}
  if(i.btcDominance!=null){if(i.btcDominance>62){score-=4;signals.push("BTC dominance elevated")}else if(i.btcDominance<50){score+=8;signals.push("lower BTC dominance")}}
  if(i.ethBtc!=null){if(i.ethBtc<0.035){score-=3;signals.push("ETH/BTC depressed")}else if(i.ethBtc>0.06){score+=7;signals.push("ETH/BTC strong")}}
  if(i.monthsFromHalving!=null){if(i.monthsFromHalving>=16&&i.monthsFromHalving<=24){score+=12;signals.push("historical late-cycle window")}else if(i.monthsFromHalving>=28){score-=10;signals.push("extended post-halving cycle")}}
