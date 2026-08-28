@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/intelligence/resolve",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}
