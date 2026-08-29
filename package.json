@@ -2,7 +2,7 @@
   "name": "shadowsignalsv2",
   "version": "0.2.0",
   "private": true,
-  "scripts": {"build": "next build", "dev": "next dev", "lint": "eslint .", "start": "next start"},
+  "scripts": {"build": "next build", "dev": "next dev", "lint": "eslint .", "start": "next start", "test": "node --experimental-strip-types scripts/test-engine.ts"},
   "dependencies": {
     "@hookform/resolvers": "3.10.0",
     "@huggingface/inference": "4.13.0",
