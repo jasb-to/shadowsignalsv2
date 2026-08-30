@@ -1,5 +1,7 @@
 import { runCycleEngine } from "../lib/intelligence/cycle-engine.ts"
 import { scoreIntelligence } from "../lib/intelligence/scoring.ts"
+import { calibrate, evaluateForecast, directionFromReturn, backtest } from "../lib/intelligence/calibration.ts"
+import { calibrateConfidence } from "../lib/intelligence/calibrated-confidence.ts"
 
 function assert(condition: unknown, message: string) { if (!condition) throw new Error(`FAIL: ${message}`) }
 function test(name: string, fn: () => void) { fn(); console.log(`PASS: ${name}`) }
@@ -75,4 +77,47 @@ test("confidence rises with evidence but remains bounded", () => {
   assert(strong.confidence <= 95, "confidence must remain <= 95")
 })
 
-console.log("A3 engine behavioural tests passed")
+test("forecast direction evaluation uses deterministic thresholds", () => {
+  assert(directionFromReturn(1.01) === "up", "positive threshold should be up")
+  assert(directionFromReturn(-1.01) === "down", "negative threshold should be down")
+  assert(directionFromReturn(0.5) === "flat", "small return should be flat")
+  const buy = evaluateForecast({ symbol: "BTC", capturedAt: 1, signal: "Buy", confidence: 70, score: 40, horizon: "1d" }, 2)
+  const sell = evaluateForecast({ symbol: "BTC", capturedAt: 1, signal: "Sell", confidence: 70, score: -40, horizon: "1d" }, -2)
+  assert(buy.correct && sell.correct, "matching directions should resolve correctly")
+})
+
+test("historical backtest never uses a price before the forecast horizon", () => {
+  const result = backtest(
+    [{ timestamp: 1000, price: 100, signal: "Buy", confidence: 70 }],
+    1000,
+    [{ timestamp: 1500, price: 200 }, { timestamp: 2000, price: 110 }]
+  ) as Array<{ targetPrice: number }>
+  assert(result.length === 1, "forecast should resolve when target price exists")
+  assert(result[0].targetPrice === 110, `backtest used price before target: ${result[0].targetPrice}`)
+})
+
+test("calibration bins have stable empirical accuracy", () => {
+  const rows = Array.from({ length: 20 }, (_, i) => ({ confidence: i < 10 ? 60 : 65, correct: i < 7, actualReturnPct: i < 10 ? 2 : -2 }))
+  const bins = calibrate(rows)
+  const bin = bins.find(b => b.range === "60-70%")
+  assert(!!bin, "60-70 calibration bin must exist")
+  assert(bin!.forecasts === 20, `expected 20 forecasts, got ${bin!.forecasts}`)
+  assert(bin!.accuracy === 35, `expected 35% accuracy, got ${bin!.accuracy}`)
+})
+
+test("confidence calibration respects bin boundaries and sample threshold", () => {
+  const bins = [
+    { range: "40-50%", forecasts: 20, accuracy: 45, avgReturnPct: 0 },
+    { range: "50-60%", forecasts: 20, accuracy: 70, avgReturnPct: 1 },
+    { range: "60-70%", forecasts: 5, accuracy: 100, avgReturnPct: 2 },
+    { range: "70-80%", forecasts: 20, accuracy: 90, avgReturnPct: 3 },
+  ]
+  const at50 = calibrateConfidence(50, bins)
+  const at55 = calibrateConfidence(55, bins)
+  const lowSample = calibrateConfidence(65, bins)
+  assert(at50.sampleSize === 20 && at50.method === "empirical", "50% must belong to the 50-60 bin")
+  assert(at55.calibrated > 55, "50-60 bin accuracy should raise 55% confidence")
+  assert(lowSample.method === "prior" && lowSample.calibrated === 65, "small samples must retain the prior")
+})
+
+console.log("A3 engine behavioural, backtest and calibration tests passed")
