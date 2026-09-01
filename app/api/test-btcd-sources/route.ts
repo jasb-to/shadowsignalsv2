@@ -192,11 +192,11 @@ export async function GET() {
       return diffA - diffB
     })
 
-  return Response.json({
+  return new Response(JSON.stringify({
     tradingViewReference: tradingViewValue,
-    results: results,
+    results,
     sortedByAccuracy: sortedResults,
     recommendation: sortedResults[0] || null,
     timestamp: new Date().toISOString(),
-  })
+  }), { headers: { "content-type": "application/json" } })
 }
