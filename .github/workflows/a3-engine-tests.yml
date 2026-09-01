@@ -36,3 +36,17 @@ jobs:
 
       - name: Production build
         run: pnpm build
+
+      - name: Production E2E
+        run: |
+          set -euo pipefail
+          url="https://a3markets.vercel.app/api/intelligence?symbol=BTC"
+          for attempt in $(seq 1 30); do
+            if body=$(curl -fsS --max-time 20 "$url"); then
+              node -e 'const x=JSON.parse(process.argv[1]); if(x.symbol!=="BTC" || !Number.isFinite(x.price) || !Number.isFinite(x.score) || !Number.isFinite(x.confidence) || !x.signal) process.exit(1)' "$body" && exit 0
+            fi
+            echo "Production E2E attempt $attempt failed; waiting for deployment/API readiness..."
+            sleep 10
+          done
+          echo "Production E2E failed after 30 attempts"
+          exit 1
