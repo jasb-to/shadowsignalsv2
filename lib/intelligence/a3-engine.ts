@@ -41,5 +41,5 @@ export function runA3Engine(m:MarketState):A3EngineResult{
  ]
  const invalidation=support!=null?`Bullish thesis weakens on a decisive close below ${support}.`:"Bullish thesis weakens on confirmed structural support failure."
  const thesis=signal==="Buy"?`${m.symbol} has a positive A³ state: directional evidence currently outweighs opposing factors.`:signal==="Sell"?`${m.symbol} has a negative A³ state: downside evidence currently outweighs bullish factors.`:`${m.symbol} is mixed: evidence is not sufficiently aligned for a strong directional thesis.`
- return{score,confidence,signal,regime,factors,confluence,scenarios,risk,invalidation,thesis,dataQuality,regimeTransition:transition,marketStructure:structure}
+ return{score,confidence,signal,regime:m.regime,factors,confluence,scenarios,risk,invalidation,thesis,dataQuality,regimeTransition:transition,marketStructure:structure}
 }
