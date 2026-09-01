@@ -2,6 +2,8 @@ import { runCycleEngine } from "../lib/intelligence/cycle-engine.ts"
 import { scoreIntelligence } from "../lib/intelligence/scoring.ts"
 import { calibrate, evaluateForecast, directionFromReturn, backtest } from "../lib/intelligence/calibration.ts"
 import { calibrateConfidence } from "../lib/intelligence/calibrated-confidence.ts"
+import { runA3Pipeline } from "../lib/intelligence/engine-pipeline.ts"
+import type { MarketState } from "../lib/market-state/types.ts"
 
 function assert(condition: unknown, message: string) { if (!condition) throw new Error(`FAIL: ${message}`) }
 function test(name: string, fn: () => void) { fn(); console.log(`PASS: ${name}`) }
@@ -77,6 +79,32 @@ test("confidence rises with evidence but remains bounded", () => {
   assert(strong.confidence <= 95, "confidence must remain <= 95")
 })
 
+test("full A3 pipeline integrates engine and contextual evidence", () => {
+  const market: MarketState = {
+    symbol: "BTC",
+    timestamp: 1,
+    price: 100000,
+    change24h: 2,
+    volume24h: 1000000,
+    signal: "Hold",
+    trend: "Trending Up",
+    regime: "bullish_expansion",
+    momentum: 20,
+    volatility: 4,
+    confidence: 70,
+    indicators: { rsi: 55, stochasticRsi: 60, ema8: 101000, ema21: 99000, macd: 2, macdSignal: 1, atr: 1000, volatility: 4 },
+    supportResistance: { support1: 95000, support2: 90000, resistance1: 105000, resistance2: 110000 },
+    evidence: ["trend confirmed"],
+    invalidation: "Close below 95000",
+  }
+  const result = runA3Pipeline(market, { breadthScore: 60, cycleScore: 70, strategicScore: 65, flowScore: 58 })
+  assert(Number.isFinite(result.intelligence.score), "pipeline score must be finite")
+  assert(result.intelligence.confidence >= 40 && result.intelligence.confidence <= 94, "pipeline confidence must be bounded")
+  assert(result.forecast.symbol === "BTC", "forecast must retain symbol")
+  assert(["Buy", "Hold", "Sell"].includes(result.forecast.signal), "forecast must contain a valid signal")
+  assert(result.intelligence.dataQuality.completeness > 0, "pipeline must report data completeness")
+})
+
 test("forecast direction evaluation uses deterministic thresholds", () => {
   assert(directionFromReturn(1.01) === "up", "positive threshold should be up")
   assert(directionFromReturn(-1.01) === "down", "negative threshold should be down")
@@ -120,4 +148,4 @@ test("confidence calibration respects bin boundaries and sample threshold", () =
   assert(lowSample.method === "prior" && lowSample.calibrated === 65, "small samples must retain the prior")
 })
 
-console.log("A3 engine behavioural, backtest and calibration tests passed")
+console.log("A3 engine behavioural, backtest, calibration and integration tests passed")
