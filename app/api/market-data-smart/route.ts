@@ -8,14 +8,18 @@ const CACHE_60={next:{revalidate:60} as const}
 const CACHE_300={next:{revalidate:300} as const}
 const staleCache=new Map<string,{data:any,timestamp:number}>()
 const MAX_STALE_MS=15*60*1000
+const PROVIDER_TIMEOUT_MS=3500
+const SYMBOL_PATTERN=/^[A-Z0-9._:/-]{1,32}$/
 
 const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms))
 
 async function fetchJSON(url:string,init:RequestInit={},attempts=2){
   let lastError:unknown
   for(let attempt=0;attempt<attempts;attempt++){
+    const controller=new AbortController()
+    const timer=setTimeout(()=>controller.abort(),PROVIDER_TIMEOUT_MS)
     try{
-      const r=await fetch(url,init)
+      const r=await fetch(url,{...init,signal:controller.signal,redirect:"error"})
       let body:any=null
       try{body=await r.json()}catch{}
       if(r.ok)return body
@@ -23,15 +27,19 @@ async function fetchJSON(url:string,init:RequestInit={},attempts=2){
       const message=typeof body?.message==="string"?body.message:""
       throw Error(`HTTP ${status}${message?` ${message}`:""}`)
     }catch(e){
-      lastError=e
+      lastError=e instanceof Error&&e.name==="AbortError"?Error("Provider request timed out"):e
       if(attempt<attempts-1)await sleep(250*(attempt+1))
-    }
+    }finally{clearTimeout(timer)}
   }
   throw lastError instanceof Error?lastError:Error("Provider request failed")
 }
 
 function remember(symbol:string,data:any){staleCache.set(symbol,{data,timestamp:Date.now()})}
-function stale(symbol:string){const cached=staleCache.get(symbol);return cached&&Date.now()-cached.timestamp<=MAX_STALE_MS?{...cached.data,stale:true}:null}
+function stale(symbol:string){
+  const cached=staleCache.get(symbol)
+  if(!cached||Date.now()-cached.timestamp>MAX_STALE_MS)return null
+  return{...cached.data,stale:true,lastKnownGoodAt:new Date(cached.timestamp).toISOString(),staleAgeMs:Date.now()-cached.timestamp}
+}
 
 async function gecko(symbol:string){
   const id=cryptoIds[symbol]
@@ -40,8 +48,8 @@ async function gecko(symbol:string){
   const coin=d?.[id]
   if(!coin)throw Error("CoinGecko quote unavailable")
   const price=Number(coin.usd)
-  if(!Number.isFinite(price))throw Error("CoinGecko returned no price")
-  return{symbol,price,change24h:Number(coin.usd_24h_change)||0,volume24h:Number(coin.usd_24h_vol)||0,source:"CoinGecko",timestamp:Date.now()}
+  if(!Number.isFinite(price)||price<=0)throw Error("CoinGecko returned invalid price")
+  return{symbol,price,change24h:Number(coin.usd_24h_change)||0,volume24h:Number(coin.usd_24h_vol)||0,source:"CoinGecko",timestamp:Date.now(),stale:false}
 }
 
 async function resolveIndex(symbol:string,key:string){
@@ -60,9 +68,9 @@ async function twelve(symbol:string){
   const d=await fetchJSON(`https://api.twelvedata.com/quote?symbol=${encodeURIComponent(resolved.symbol)}${exchange}&apikey=${key}`,CACHE_60)
   if(d?.status==="error")throw Error(typeof d.message==="string"?d.message:"TwelveData error")
   const price=Number(d?.close)
-  if(!Number.isFinite(price))throw Error("TwelveData returned no price")
+  if(!Number.isFinite(price)||price<=0)throw Error("TwelveData returned invalid price")
   const volume=Number(d?.volume)
-  return{symbol,price,change24h:Number(d?.percent_change)||0,volume24h:Number.isFinite(volume)?volume:null,volumeAvailable:Number.isFinite(volume),source:"TwelveData",timestamp:Date.now()}
+  return{symbol,price,change24h:Number(d?.percent_change)||0,volume24h:Number.isFinite(volume)?volume:null,volumeAvailable:Number.isFinite(volume),source:"TwelveData",timestamp:Date.now(),stale:false}
 }
 
 async function massive(symbol:string){
@@ -80,32 +88,33 @@ async function massive(symbol:string){
   if(!item)throw Error("Massive returned no data")
   if(type==="index"){
     const price=Number(item.value)
-    if(!Number.isFinite(price))throw Error("Massive returned no index value")
-    return{symbol,price,change24h:Number(item?.session?.change_percent)||0,volume24h:null,volumeAvailable:false,source:"Massive",timestamp:Date.now()}
+    if(!Number.isFinite(price)||price<=0)throw Error("Massive returned no index value")
+    return{symbol,price,change24h:Number(item?.session?.change_percent)||0,volume24h:null,volumeAvailable:false,source:"Massive",timestamp:Date.now(),stale:false}
   }
   const session=item.session||item.day||{}
   const price=Number(item?.lastTrade?.p??item?.lastQuote?.P??item?.lastQuote?.a??session?.price??session?.close??item?.min?.c??item?.day?.c)
-  if(!Number.isFinite(price))throw Error("Massive returned no price")
+  if(!Number.isFinite(price)||price<=0)throw Error("Massive returned invalid price")
   const volume=Number(session.volume??item?.day?.v??item?.min?.v)
-  return{symbol,price,change24h:Number(item?.todaysChangePerc??session?.change_percent)||0,volume24h:Number.isFinite(volume)?volume:null,volumeAvailable:Number.isFinite(volume),source:"Massive",timestamp:Date.now()}
+  return{symbol,price,change24h:Number(item?.todaysChangePerc??session?.change_percent)||0,volume24h:Number.isFinite(volume)?volume:null,volumeAvailable:Number.isFinite(volume),source:"Massive",timestamp:Date.now(),stale:false}
 }
 
 export async function GET(req:NextRequest){
   const raw=req.nextUrl.searchParams.get("symbol")?.trim()||""
   if(!raw)return NextResponse.json({error:"Symbol is required"},{status:400})
   const symbol=raw.toUpperCase()
+  if(!SYMBOL_PATTERN.test(symbol))return NextResponse.json({error:"Invalid symbol"},{status:400})
   const isCrypto=cryptoSymbols.has(symbol)
   const providers=isCrypto?[gecko,twelve,massive]:[twelve,massive]
   for(const provider of providers){
     try{
       const data=await provider(symbol)
       remember(symbol,data)
-      return NextResponse.json(data)
+      return NextResponse.json(data,{headers:{"Cache-Control":"public, s-maxage=60, stale-while-revalidate=300","X-A3-Data-Status":"fresh"}})
     }catch(e){
       console.warn(`[A3] market-data-smart provider failed for ${symbol}`,e instanceof Error?e.message:"unknown error")
     }
   }
   const cached=stale(symbol)
-  if(cached)return NextResponse.json(cached)
-  return NextResponse.json({error:"Market data unavailable",symbol},{status:503})
+  if(cached)return NextResponse.json(cached,{headers:{"Cache-Control":"public, s-maxage=60, stale-while-revalidate=300","X-A3-Data-Status":"stale"}})
+  return NextResponse.json({error:"Market data unavailable",symbol},{status:503,headers:{"Cache-Control":"no-store"}})
 }
