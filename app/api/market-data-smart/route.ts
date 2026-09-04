@@ -10,6 +10,7 @@ const indexSymbols = new Set(["SPX","NDX"])
 const SYMBOL_PATTERN = /^[A-Z0-9][A-Z0-9._:/-]{0,31}$/
 const PROVIDER_TIMEOUT_MS = 3500
 const CACHE_SECONDS = 60
+const MAX_STALE_SECONDS = 900
 const STALE_IF_ERROR_SECONDS = 900
 
 const sleep = (ms:number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -108,7 +109,11 @@ export async function GET(req:NextRequest) {
     try {
       const data:any = await provider.load(symbol)
       const ageSeconds = Math.max(0, Math.floor((Date.now()-Number(data.timestamp||Date.now()))/1000))
-      return NextResponse.json({...data, dataAgeSeconds:ageSeconds},{headers:{"Cache-Control":`public, s-maxage=${CACHE_SECONDS}, stale-while-revalidate=${STALE_IF_ERROR_SECONDS}, stale-if-error=${STALE_IF_ERROR_SECONDS}`,"X-A3-Data-Status":ageSeconds<=CACHE_SECONDS?"fresh":"stale"}})
+      if (ageSeconds > MAX_STALE_SECONDS) {
+        console.warn(`[A3] cached market data expired for ${symbol} via ${provider.name}`)
+        continue
+      }
+      return NextResponse.json({...data, dataAgeSeconds:ageSeconds, stale:ageSeconds>CACHE_SECONDS},{headers:{"Cache-Control":`public, s-maxage=${CACHE_SECONDS}, stale-while-revalidate=${STALE_IF_ERROR_SECONDS}, stale-if-error=${STALE_IF_ERROR_SECONDS}`,"X-A3-Data-Status":ageSeconds<=CACHE_SECONDS?"fresh":"stale"}})
     } catch (error) {
       console.warn(`[A3] market-data-smart provider failed for ${symbol} via ${provider.name}`, error instanceof Error ? error.message : "unknown error")
     }
