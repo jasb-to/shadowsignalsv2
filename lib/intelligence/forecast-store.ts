@@ -1,8 +1,9 @@
 import type { A3ForecastRecord } from "./engine-pipeline"
 import { calibrate, evaluateForecast, type Outcome } from "./calibration"
 
-const cfg=()=>({url:process.env.NEXT_PUBLIC_SUPABASE_URL,key:process.env.SUPABASE_SERVICE_ROLE_KEY})
-async function query(path:string,init:RequestInit={}){const{url,key}=cfg();if(!url||!key)return null;const r=await fetch(`${url}/rest/v1/${path}`,{...init,headers:{apikey:key,Authorization:`Bearer ${key}`,"Content-Type":"application/json",...(init.headers||{})},cache:"no-store"});if(!r.ok)throw Error(`Supabase ${r.status}`);return r.status===204?null:r.json()}
+const cfg=()=>({url:process.env.SUPABASE_URL||process.env.NEXT_PUBLIC_SUPABASE_URL,key:process.env.SUPABASE_SERVICE_ROLE_KEY})
+const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms))
+async function query(path:string,init:RequestInit={}){const{url,key}=cfg();if(!url||!key)return null;let lastError:unknown;for(let attempt=0;attempt<3;attempt++){try{const r=await fetch(`${url.replace(/\/$/,"")}/rest/v1/${path}`,{...init,headers:{apikey:key,Authorization:`Bearer ${key}`,"Content-Type":"application/json",...(init.headers||{})},cache:"no-store"});if(!r.ok)throw Error(`Supabase ${r.status}`);return r.status===204?null:r.json()}catch(e){lastError=e;if(attempt<2)await sleep(200*(attempt+1))}}throw lastError}
 
 export async function persistForecast(f:A3ForecastRecord,price:number){return query("a3_forecasts",{method:"POST",headers:{Prefer:"return=representation"},body:JSON.stringify({symbol:f.symbol,captured_at:new Date(f.capturedAt).toISOString(),price,signal:f.signal,confidence:f.confidence,score:f.score,scenario:f.scenario,regime:f.regime,horizon:f.horizon})})}
 
