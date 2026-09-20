@@ -42,7 +42,7 @@ async function geckoFresh(symbol:string) {
   const coin = data?.[id]
   const price = Number(coin?.usd)
   if (!Number.isFinite(price) || price <= 0) throw Error("CoinGecko returned no valid price")
-  return { symbol, price, change24h:Number(coin.usd_24h_change)||0, volume24h:Number(coin.usd_24h_vol)||0, source:"CoinGecko", timestamp:Date.now(), stale:false }
+  return { symbol, price, change24h:Number.isFinite(Number(coin?.usd_24h_change)) ? Number(coin.usd_24h_change) : null, volume24h:Number.isFinite(Number(coin?.usd_24h_vol)) ? Number(coin.usd_24h_vol) : null, source:"CoinGecko", timestamp:Date.now(), stale:false }
 }
 
 async function resolveIndex(symbol:string,key:string) {
@@ -63,7 +63,7 @@ async function twelveFresh(symbol:string) {
   const price = Number(data?.close)
   if (!Number.isFinite(price) || price <= 0) throw Error("TwelveData returned no valid price")
   const volume = Number(data?.volume)
-  return { symbol, price, change24h:Number(data?.percent_change)||0, volume24h:Number.isFinite(volume)?volume:null, volumeAvailable:Number.isFinite(volume), source:"TwelveData", timestamp:Date.now(), stale:false }
+  return { symbol, price, change24h:Number.isFinite(Number(data?.percent_change)) ? Number(data.percent_change) : null, volume24h:Number.isFinite(volume)?volume:null, volumeAvailable:Number.isFinite(volume), source:"TwelveData", timestamp:Date.now(), stale:false }
 }
 
 async function massiveFresh(symbol:string) {
@@ -81,13 +81,13 @@ async function massiveFresh(symbol:string) {
   if (type === "index") {
     const price = Number(item.value)
     if (!Number.isFinite(price) || price <= 0) throw Error("Massive returned no valid index value")
-    return { symbol, price, change24h:Number(item?.session?.change_percent)||0, volume24h:null, volumeAvailable:false, source:"Massive", timestamp:Date.now(), stale:false }
+    return { symbol, price, change24h:Number.isFinite(Number(item?.session?.change_percent)) ? Number(item.session.change_percent) : null, volume24h:null, volumeAvailable:false, source:"Massive", timestamp:Date.now(), stale:false }
   }
   const session = item.session || item.day || {}
   const price = Number(item?.lastTrade?.p ?? item?.lastQuote?.P ?? item?.lastQuote?.a ?? session?.price ?? session?.close ?? item?.min?.c ?? item?.day?.c)
   if (!Number.isFinite(price) || price <= 0) throw Error("Massive returned no valid price")
   const volume = Number(session.volume ?? item?.day?.v ?? item?.min?.v)
-  return { symbol, price, change24h:Number(item?.todaysChangePerc ?? session?.change_percent)||0, volume24h:Number.isFinite(volume)?volume:null, volumeAvailable:Number.isFinite(volume), source:"Massive", timestamp:Date.now(), stale:false }
+  return { symbol, price, change24h:Number.isFinite(Number(item?.todaysChangePerc ?? session?.change_percent)) ? Number(item?.todaysChangePerc ?? session?.change_percent) : null, volume24h:Number.isFinite(volume)?volume:null, volumeAvailable:Number.isFinite(volume), source:"Massive", timestamp:Date.now(), stale:false }
 }
 
 function durable<T>(provider:string, symbol:string, loader:(symbol:string)=>Promise<T>) {
