@@ -8,7 +8,6 @@ import { runCrossAsset } from "@/lib/intelligence/cross-asset"
 import { runDerivativesEngine } from "@/lib/intelligence/derivatives-engine"
 import { runDivergenceEngine } from "@/lib/intelligence/divergence-engine"
 import { runCycleEngine } from "@/lib/intelligence/cycle-engine"
-import { buildFlowSnapshot } from "@/lib/intelligence/flows"
 import { detectRegimeTransition } from "@/lib/intelligence/regime-transition"
 import { numeric } from "@/lib/utils"
 
@@ -52,18 +51,37 @@ export async function GET(request: NextRequest) {
 
     const cycleUrl = new URL("/api/market-cycle", request.url)
     const crossAssetUrl = new URL("/api/v1/cross-asset", request.url)
+    const derivativesUrl = new URL("/api/v1/derivatives", request.url)
+    const flowUrl = new URL("/api/v1/flows", request.url)
+    derivativesUrl.searchParams.set("symbol", symbol)
+    flowUrl.searchParams.set("symbol", symbol)
 
-    const [analysisResponse, cycleResponse, crossAssetResponse] =
-      await Promise.all([
-        fetch(analysisUrl, { cache: "no-store" }),
-        fetch(cycleUrl, { cache: "no-store" }),
-        fetch(crossAssetUrl, { cache: "no-store" }),
-      ])
+    const [
+      analysisResponse,
+      cycleResponse,
+      crossAssetResponse,
+      derivativesResponse,
+      flowResponse,
+    ] = await Promise.all([
+      fetch(analysisUrl, { cache: "no-store" }),
+      fetch(cycleUrl, { cache: "no-store" }),
+      fetch(crossAssetUrl, { cache: "no-store" }),
+      fetch(derivativesUrl, { cache: "no-store" }),
+      fetch(flowUrl, { cache: "no-store" }),
+    ])
 
-    const [analysis, cycleData, crossData] = await Promise.all([
+    const [
+      analysis,
+      cycleData,
+      crossData,
+      derivativesData,
+      flowData,
+    ] = await Promise.all([
       analysisResponse.json(),
       cycleResponse.ok ? cycleResponse.json() : Promise.resolve({}),
       crossAssetResponse.ok ? crossAssetResponse.json() : Promise.resolve({}),
+      derivativesResponse.ok ? derivativesResponse.json() : Promise.resolve(null),
+      flowResponse.ok ? flowResponse.json() : Promise.resolve(null),
     ])
 
     if (!analysisResponse.ok) {
@@ -103,13 +121,36 @@ export async function GET(request: NextRequest) {
         (macd.includes("bull") ? 10 : macd.includes("bear") ? -10 : 0)
     )
 
-    const derivatives = runDerivativesEngine({
-      fundingRate: n(analysis.derivatives?.fundingRate),
-      openInterestChangePct: n(analysis.derivatives?.openInterestChangePct),
-      longShortRatio: n(analysis.derivatives?.longShortRatio),
-      liquidationsUsd: n(analysis.derivatives?.liquidationsUsd),
+    const rawDerivativesSnapshot =
+      derivativesData && derivativesData.source !== "unavailable"
+        ? derivativesData
+        : null
+
+    const fundingRate = n(rawDerivativesSnapshot?.fundingRate)
+    const openInterestChangePct = n(rawDerivativesSnapshot?.openInterestChangePct)
+    const longShortRatio = n(rawDerivativesSnapshot?.longShortRatio)
+
+    const derivativesAvailable = [
+      fundingRate,
+      openInterestChangePct,
+      longShortRatio,
+    ].some((value) => value !== null)
+
+    // An absolute open-interest value alone is not used by the score engine.
+    const derivativesSnapshot = derivativesAvailable
+      ? rawDerivativesSnapshot
+      : null
+
+    const derivativesResult = runDerivativesEngine({
+      fundingRate,
+      openInterestChangePct,
+      longShortRatio,
+      // No exact rolling 24h liquidation total is supplied.
+      liquidationsUsd: null,
       priceChangePct: change,
     })
+
+    const derivatives = derivativesAvailable ? derivativesResult : null
 
     const rawCross = crossData.crossAsset ?? runCrossAsset({
       btcReturn: n(crossData.inputs?.btcReturn),
@@ -138,50 +179,46 @@ export async function GET(request: NextRequest) {
       ethBtc,
     })
 
-    const divergence = runDivergenceEngine({
-      priceChangePct: change,
-      volumeChangePct: n(analysis.volumeChangePct),
-      momentumChange: n(analysis.momentumChange),
-      fundingRate: n(analysis.derivatives?.fundingRate),
-      openInterestChangePct: n(analysis.derivatives?.openInterestChangePct),
-      breadthChange: n(crossData.breadthChangePct),
-    })
-
-    const volume =
-      n(analysis.volume24h) ?? n(analysis.volume)
-    const previousVolume =
-      n(analysis.previousVolume24h) ?? n(analysis.previousVolume)
-
-    const suppliedFlow = analysis.flow
+    const volumeChangePct = n(flowData?.volumeChangePct)
     const flow =
-      suppliedFlow &&
-      n(suppliedFlow.volumeChangePct) !== null
-        ? suppliedFlow
-        : volume !== null &&
-            previousVolume !== null &&
-            change !== null
-          ? buildFlowSnapshot(symbol, volume, previousVolume, change)
-          : {
-              symbol,
-              volume24h: volume,
-              volumeChangePct: null,
-              priceChangePct: change,
-              volumePriceDivergence: "neutral" as const,
-              source: "unavailable",
-              timestamp: Date.now(),
-            }
+      flowData && flowData.source !== "unavailable"
+        ? flowData
+        : null
 
-    const flowScore = clamp(
-      50 +
-        (flow.volumePriceDivergence === "bullish"
-          ? 20
-          : flow.volumePriceDivergence === "bearish"
-            ? -20
-            : 0) +
-        (flow.volumeChangePct !== null
-          ? Math.max(-15, Math.min(15, flow.volumeChangePct / 4))
-          : 0)
-    )
+    const divergenceInputs = {
+      priceChangePct: change,
+      volumeChangePct,
+      momentumChange: n(analysis.momentumChange),
+      fundingRate,
+      openInterestChangePct,
+      breadthChange: n(crossData.breadthChangePct),
+    }
+
+    const hasDivergenceInputs =
+      (change !== null && (
+        volumeChangePct !== null ||
+        divergenceInputs.momentumChange !== null ||
+        divergenceInputs.breadthChange !== null
+      )) ||
+      (fundingRate !== null && openInterestChangePct !== null)
+
+    const divergence = hasDivergenceInputs
+      ? runDivergenceEngine(divergenceInputs)
+      : null
+
+    const flowVolumeChange = n(flow?.volumeChangePct)
+    const flowScore =
+      flow && flowVolumeChange !== null
+        ? clamp(
+            50 +
+              (flow.volumePriceDivergence === "bullish"
+                ? 20
+                : flow.volumePriceDivergence === "bearish"
+                  ? -20
+                  : 0) +
+              Math.max(-15, Math.min(15, flowVolumeChange / 4))
+          )
+        : null
 
     const market = {
       ...analysis.marketState,
@@ -199,24 +236,34 @@ export async function GET(request: NextRequest) {
       },
     }
 
-    const cycleScore = cycle.score
-    const breadth = clamp(n(crossData.breadthScore) ?? 50)
-    const risk = clamp(65 - (n(cycleData.bullMarket?.topRiskScore) ?? 0))
+    const cycleAvailable =
+      (btcPrice !== null && currentAth !== null) ||
+      (symbol === "BTC" && rsi !== null) ||
+      btcDominance !== null ||
+      ethBtc !== null
 
-    const transition = detectRegimeTransition({
-      regime: cycle.phase,
-      priceChangePct: change,
-      volumeChangePct: n(flow.volumeChangePct),
-      rsi,
-      btcDominance,
-      ethBtc,
-      cycleScore,
-    })
+    const cycleScore = cycleAvailable ? cycle.score : null
+    const breadth = n(crossData.breadthScore)
+    const topRisk = n(cycleData.bullMarket?.topRiskScore)
+    const risk = topRisk === null ? 50 : clamp(100 - topRisk)
+
+    // A transition only makes sense when there is an observed cycle regime.
+    const transition = cycleAvailable
+      ? detectRegimeTransition({
+          regime: cycle.phase,
+          priceChangePct: change,
+          volumeChangePct: flowVolumeChange,
+          rsi: symbol === "BTC" ? rsi : null,
+          btcDominance,
+          ethBtc,
+          cycleScore,
+        })
+      : null
 
     const pipeline = await runCalibratedA3Pipeline(
       market,
       {
-        derivatives: analysis.derivatives || null,
+        derivatives: derivativesSnapshot,
         derivativesResult: derivatives,
         flow,
         historical: analysis.historical || null,
@@ -225,8 +272,8 @@ export async function GET(request: NextRequest) {
         cycleScore,
         strategicScore: strategic,
         flowScore,
-        transitionScore: transition.score,
-        cycle,
+        transitionScore: transition?.score ?? null,
+        cycle: cycleAvailable ? cycle : null,
         divergence,
         transition,
       },
@@ -236,8 +283,8 @@ export async function GET(request: NextRequest) {
     const decision = decide({
       tacticalScore: tactical,
       strategicScore: strategic,
-      cycleScore,
-      breadthScore: breadth,
+      cycleScore: cycleScore ?? 50,
+      breadthScore: breadth ?? 50,
       riskScore: risk,
     })
 
@@ -256,21 +303,22 @@ export async function GET(request: NextRequest) {
       drivers: pipeline.intelligence.evidence,
       regime: pipeline.intelligence.regime,
       cycle: {
-        phase: cycle.phase,
+        available: cycleAvailable,
+        phase: cycleAvailable ? cycle.phase : null,
         ath: currentAth,
         athDate: cycleData.bullMarket?.athDate ?? null,
         drawdownPct: currentDrawdown,
         priorTop: cycleData.bullMarket?.priorTop ?? null,
         nextTop: cycleData.bullMarket?.estimatedTop ?? null,
         bottomWindow: cycleData.bearMarket?.bottomWindow ?? null,
-        bottomProbability: cycle.bottomProbability,
-        topProbability: cycle.topProbability,
+        bottomProbability: cycleAvailable ? cycle.bottomProbability : null,
+        topProbability: cycleAvailable ? cycle.topProbability : null,
       },
       transition,
       flow: {
-        volume24h: flow.volume24h,
-        volumeChangePct: flow.volumeChangePct,
-        volumePriceDivergence: flow.volumePriceDivergence,
+        volume24h: n(flow?.volume24h),
+        volumeChangePct: flowVolumeChange,
+        volumePriceDivergence: flow?.volumePriceDivergence ?? null,
         score: flowScore,
       },
       market: {
@@ -281,8 +329,8 @@ export async function GET(request: NextRequest) {
         resistance: n(analysis.technicalIndicators?.resistance),
         bullTopRisk: n(cycleData.bullMarket?.topRiskScore),
         breadthScore: breadth,
-        derivativesRisk: derivatives.leverageRisk,
-        crowding: derivatives.crowding,
+        derivativesRisk: derivatives?.leverageRisk ?? "unknown",
+        crowding: derivatives?.crowding ?? "unknown",
         crossAssetRegime: cross?.regime ?? "unavailable",
       },
       dataQuality: {
