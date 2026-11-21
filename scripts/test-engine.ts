@@ -149,7 +149,9 @@ test("volatility annualisation is timeframe-aware", () => {
   const closes = Array.from({ length: 22 }, (_, i) => 100 + Math.sin(i) * 2 + i * 0.1)
   const hourly = volatility(closes, 20, 24 * 365)
   const daily = volatility(closes, 20, 365)
-  assert(hourly !== null && daily !== null, "volatility should be calculated")
+  if (hourly === null || daily === null) {
+    throw new Error("volatility should be calculated for both intervals")
+  }
   assert(Math.abs(hourly / daily - Math.sqrt(24)) < 1e-10, "hourly annualisation must use sqrt(24) more than daily")
 })
 

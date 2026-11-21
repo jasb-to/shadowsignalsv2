@@ -54,10 +54,11 @@ export async function GET(request: NextRequest) {
     )
   )
 
+  const availableQuotes = quoteResults.filter(
+    (quote): quote is NonNullable<typeof quote> => quote !== null
+  )
   const quotes = Object.fromEntries(
-    quoteResults
-      .filter((quote) => quote !== null)
-      .map((quote) => [quote.symbol, quote])
+    availableQuotes.map((quote) => [quote.symbol, quote])
   )
 
   const btcReturn = quotes.BTC?.return24h ?? null
