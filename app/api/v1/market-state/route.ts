@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { buildMarketState } from "../../../../lib/market-state/build-market-state"
+import { buildMarketState, normaliseMarketTimeframe } from "../../../../lib/market-state/build-market-state"
 import { recordMarketState } from "../../../../lib/market-state/memory"
 import { persistMarketState } from "../../../../lib/market-state/persistence"
 import type { OHLCVBar } from "../../../../lib/market-state/types"
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     const first24 = bars.at(-25) ?? bars[0]
     const change24h = ((latest.close - first24.close) / first24.close) * 100
     const volume24h = bars.slice(-24).reduce((sum, bar) => sum + bar.volume, 0)
-    const state = buildMarketState(symbol, bars, change24h, volume24h)
+    const state = buildMarketState(symbol, bars, change24h, volume24h, normaliseMarketTimeframe(interval))
     recordMarketState(state)
     const persistence = await persistMarketState(state, interval)
     return NextResponse.json({ ...state, interval, source: data.source, persistence })

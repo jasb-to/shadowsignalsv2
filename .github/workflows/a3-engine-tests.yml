@@ -38,6 +38,7 @@ jobs:
         run: pnpm build
 
       - name: Production E2E
+        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           url="https://a3markets.vercel.app/api/intelligence?symbol=BTC"
