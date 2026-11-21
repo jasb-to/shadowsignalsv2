@@ -1,6 +1,14 @@
 export type MarketSignal = "Buy" | "Sell" | "Hold"
 export type MarketTrend = "Trending Up" | "Trending Down" | "Sideways"
-export type MarketRegime = "bullish_expansion" | "bearish_expansion" | "accumulation" | "distribution" | "range" | "transition"
+export type MarketRegime =
+  | "bullish_expansion"
+  | "bearish_expansion"
+  | "accumulation"
+  | "distribution"
+  | "range"
+  | "transition"
+
+export type MarketTimeframe = "1h" | "4h" | "1d" | "7d" | "1m"
 
 export interface OHLCVBar {
   timestamp: number

@@ -2,6 +2,11 @@ import { runCycleEngine } from "../lib/intelligence/cycle-engine.ts"
 import { scoreIntelligence } from "../lib/intelligence/scoring.ts"
 import { calibrate, evaluateForecast, directionFromReturn, backtest } from "../lib/intelligence/calibration.ts"
 import { calibrateConfidence } from "../lib/intelligence/calibrated-confidence.ts"
+import { momentumFromRsi } from "../lib/intelligence/a3-engine.ts"
+import { numeric } from "../lib/utils.ts"
+import { volatility } from "../lib/market-state/indicators.ts"
+import { runCrossAsset } from "../lib/intelligence/cross-asset.ts"
+import { runDerivativesEngine } from "../lib/intelligence/derivatives-engine.ts"
 
 function assert(condition: unknown, message: string) { if (!condition) throw new Error(`FAIL: ${message}`) }
 function test(name: string, fn: () => void) { fn(); console.log(`PASS: ${name}`) }
@@ -121,3 +126,51 @@ test("confidence calibration respects bin boundaries and sample threshold", () =
 })
 
 console.log("A3 engine behavioural, backtest and calibration tests passed")
+
+test("strict numeric helper preserves unavailable values", () => {
+  assert(numeric(null) === null, "null must remain null")
+  assert(numeric(undefined) === null, "undefined must remain null")
+  assert(numeric(Number.NaN) === null, "NaN must remain null")
+  assert(numeric(Number.POSITIVE_INFINITY) === null, "infinity must remain null")
+  assert(numeric("") === null, "empty strings must remain null")
+  assert(numeric(true) === null, "booleans must not coerce to numbers")
+  assert(numeric("0") === 0, "numeric zero string must remain zero")
+  assert(numeric("42.5") === 42.5, "numeric strings must parse")
+})
+
+test("RSI momentum is centred around 50", () => {
+  assert(momentumFromRsi(null) === 0, "missing RSI must be neutral")
+  assert(momentumFromRsi(50) === 0, "RSI 50 must be neutral")
+  assert(momentumFromRsi(70) === 20, "RSI 70 should map to +20")
+  assert(momentumFromRsi(30) === -20, "RSI 30 should map to -20")
+})
+
+test("volatility annualisation is timeframe-aware", () => {
+  const closes = Array.from({ length: 22 }, (_, i) => 100 + Math.sin(i) * 2 + i * 0.1)
+  const hourly = volatility(closes, 20, 24 * 365)
+  const daily = volatility(closes, 20, 365)
+  if (hourly === null || daily === null) {
+    throw new Error("volatility should be calculated for both intervals")
+  }
+  assert(Math.abs(hourly / daily - Math.sqrt(24)) < 1e-10, "hourly annualisation must use sqrt(24) more than daily")
+})
+
+test("missing current ATH does not create a zero drawdown signal", () => {
+  const result = runCycleEngine({ price: 90000, ath: null, rsi: 50 })
+  assert(!result.signals.includes("near cycle highs"), "missing ATH must not imply a zero drawdown")
+  assert(result.score === 50, "missing ATH and neutral evidence should preserve the neutral score")
+})
+
+console.log("A3 null-handling, momentum and timeframe-volatility tests passed")
+
+test("cross-asset regime remains unavailable without source pairs", () => {
+  const result = runCrossAsset({})
+  assert(result.regime === "unavailable", "no cross-asset data must not be labelled mixed")
+  assert(result.availablePairs === 0, "no source pairs should be counted")
+})
+
+test("derivatives risk remains unknown when inputs are missing", () => {
+  const result = runDerivativesEngine({})
+  assert(result.leverageRisk === "unknown", "missing derivatives data must not imply low risk")
+  assert(result.crowding === "unknown", "missing long/short data must not imply balanced positioning")
+})
