@@ -153,6 +153,9 @@ function timeframeSnapshot(
     volatility: state.indicators.volatility,
     trend: state.trend,
     regime: state.regime,
+    // The candle timestamp is the actual completed observation time;
+    // state.timestamp is only the time this API calculation ran.
+    lastCandleTimestamp: bars.at(-1)?.timestamp ?? null,
     timestamp: state.timestamp,
     source,
     barCount: bars.length,
