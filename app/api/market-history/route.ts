@@ -71,6 +71,7 @@ async function fetchBinanceHistory(
     if (!Array.isArray(row) || row.length < 6) return []
 
     const timestamp = numeric(row[0])
+    const closeTimestamp = numeric(row[6])
     const open = numeric(row[1])
     const high = numeric(row[2])
     const low = numeric(row[3])
@@ -79,6 +80,8 @@ async function fetchBinanceHistory(
 
     if (
       timestamp === null ||
+      closeTimestamp === null ||
+      closeTimestamp >= Date.now() ||
       open === null ||
       high === null ||
       low === null ||
@@ -99,6 +102,30 @@ async function fetchBinanceHistory(
   return bars
 }
 
+function nextCandleOpenTime(timestamp: number, interval: string): number {
+  const end = new Date(timestamp)
+
+  switch (interval) {
+    case "1h":
+      end.setUTCHours(end.getUTCHours() + 1)
+      break
+    case "4h":
+      end.setUTCHours(end.getUTCHours() + 4)
+      break
+    case "1d":
+      end.setUTCDate(end.getUTCDate() + 1)
+      break
+    case "7d":
+      end.setUTCDate(end.getUTCDate() + 7)
+      break
+    case "1m":
+      end.setUTCMonth(end.getUTCMonth() + 1)
+      break
+  }
+
+  return end.getTime()
+}
+
 async function fetchTwelveDataHistory(
   symbol: string,
   interval: string,
@@ -115,6 +142,7 @@ async function fetchTwelveDataHistory(
     encodeURIComponent(apiInterval) +
     "&outputsize=" +
     String(Math.min(limit, 500)) +
+    "&timezone=UTC" +
     "&apikey=" +
     encodeURIComponent(apiKey)
 
@@ -154,6 +182,7 @@ async function fetchTwelveDataHistory(
 
       if (
         !Number.isFinite(timestamp) ||
+        nextCandleOpenTime(timestamp, interval) > Date.now() ||
         open === null ||
         high === null ||
         low === null ||
