@@ -9,6 +9,24 @@
 
 The public dashboard summary is deliberately separate from the paid API so the existing browser dashboard does not need a customer secret.
 
+## Production smoke-test configuration
+
+The GitHub Actions workflow runs its live trust checks only when the repository variable
+`A3_PRODUCTION_BASE_URL` is set to the exact HTTPS origin of the A³ deployment.
+Do not point it at the CX Switch project or assume a Vercel domain alias without
+checking which project owns it.
+
+For the optional authenticated check, add a GitHub Actions repository secret named
+`A3_TEST_API_KEY` containing a dedicated Free or Pro test key. The secret is never
+printed by the workflow. Without that secret, the workflow still checks that the
+metered route rejects requests without an API key, and reports the authenticated
+check as skipped.
+
+Until the correct Vercel project and domain are linked, leave
+`A3_PRODUCTION_BASE_URL` unset. The workflow reports the production checks as
+skipped rather than failing against an assumed hostname or falsely claiming that
+production has been verified.
+
 ## Required server environment
 
 Set these variables in the Vercel project for Preview and Production:
@@ -55,7 +73,7 @@ A Pro key can be manually issued with the \`pro\` tier argument for internal tes
 Configure the Stripe webhook URL as:
 
 \`\`\`
-https://a3markets.vercel.app/api/webhooks/stripe
+https://YOUR-CONFIRMED-PRODUCTION-DOMAIN/api/webhooks/stripe
 \`\`\`
 
 Subscribe to:
@@ -73,18 +91,19 @@ The webhook sends the raw API key using Resend. It stores an encrypted copy only
 
 \`\`\`bash
 # Public market-cycle data; ath and drawdownPct may be null if the provider fails.
-curl -sS https://a3markets.vercel.app/api/market-cycle | jq
+BASE_URL="https://YOUR-CONFIRMED-PRODUCTION-DOMAIN"
+curl -sS "$BASE_URL/api/market-cycle" | jq
 
 # Distinct candle intervals; compare each timeframe's price and RSI.
-curl -sS "https://a3markets.vercel.app/api/comprehensive-analysis?symbol=BTC" \
+curl -sS "$BASE_URL/api/comprehensive-analysis?symbol=BTC" \
   | jq '.multiTimeframe'
 
 # A customer API request without a key must fail with 401.
-curl -i "https://a3markets.vercel.app/api/v1/intelligence?symbol=BTC"
+curl -i "$BASE_URL/api/v1/intelligence?symbol=BTC"
 
 # A test Free or Pro key should succeed and return quota headers.
 curl -i -H "Authorization: Bearer a3_live_YOUR_TEST_KEY" \
-  "https://a3markets.vercel.app/api/v1/intelligence?symbol=BTC"
+  "$BASE_URL/api/v1/intelligence?symbol=BTC"
 \`\`\`
 
 Run \`pnpm test\`, \`pnpm exec tsc --noEmit\`, and \`pnpm build\` before promoting the feature branch.

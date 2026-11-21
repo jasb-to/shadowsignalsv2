@@ -40,10 +40,21 @@ jobs:
       - name: Production trust checks
         if: github.event_name != 'pull_request'
         env:
+          A3_PRODUCTION_BASE_URL: ${{ vars.A3_PRODUCTION_BASE_URL }}
           A3_TEST_API_KEY: ${{ secrets.A3_TEST_API_KEY }}
         run: |
           set -euo pipefail
-          base="https://a3markets.vercel.app"
+          if [ -z "${A3_PRODUCTION_BASE_URL:-}" ]; then
+            echo "::notice:: A3_PRODUCTION_BASE_URL is not configured; production checks are skipped."
+            exit 0
+          fi
+
+          if [[ "$A3_PRODUCTION_BASE_URL" != https://* ]]; then
+            echo "::error:: A3_PRODUCTION_BASE_URL must be an HTTPS origin."
+            exit 1
+          fi
+
+          base="${A3_PRODUCTION_BASE_URL%/}"
 
           # Wait for the deployment, then check the public dashboard API.
           for attempt in $(seq 1 30); do
